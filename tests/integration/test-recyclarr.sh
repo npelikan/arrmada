@@ -113,6 +113,16 @@ helm upgrade "${RELEASE}" "${CHART_DIR}" \
   --wait \
   --timeout 120s
 
+# Helm's cascade deletion of CronJobs (which manage child Jobs) can take
+# ~2 minutes for the GC cycle to process. Wait before asserting absence.
+echo "Waiting for any previous recyclarr resources to be fully deleted..."
+kubectl wait cronjob "${RELEASE}-recyclarr" \
+  --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
+  --for=delete --timeout=180s 2>/dev/null || true
+kubectl wait configmap "${RELEASE}-recyclarr-config" \
+  --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
+  --for=delete --timeout=180s 2>/dev/null || true
+
 check_not_exists "CronJob absent when Recyclarr disabled" \
   cronjob "${RELEASE}-recyclarr"
 check_not_exists "ConfigMap absent when Recyclarr disabled" \
@@ -337,10 +347,10 @@ helm upgrade "${RELEASE}" "${CHART_DIR}" \
 # Wait for Helm's delete requests to be fully processed by the GC
 kubectl wait cronjob "${RELEASE}-recyclarr" \
   --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
-  --for=delete --timeout=60s 2>/dev/null || true
+  --for=delete --timeout=180s 2>/dev/null || true
 kubectl wait configmap "${RELEASE}-recyclarr-config" \
   --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
-  --for=delete --timeout=60s 2>/dev/null || true
+  --for=delete --timeout=180s 2>/dev/null || true
 
 check_not_exists "CronJob removed when Recyclarr disabled" \
   cronjob "${RELEASE}-recyclarr"
