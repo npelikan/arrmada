@@ -204,3 +204,62 @@ at runtime and never stored in plaintext in the ConfigMap.
 {{- end -}}
 {{- $apps | toJson -}}
 {{- end }}
+
+{{/*
+Generate recyclarr.yml content from values.
+Service URLs are auto-populated; API keys use !env_var so they are not stored
+in the ConfigMap in plaintext.
+
+Note: the recyclarr.config.sonarr/radarr values use snake_case field names
+to directly mirror the recyclarr.yml format (instance_name, quality_definition,
+quality_profiles, custom_formats, delete_old_custom_formats).
+*/}}
+{{- define "arrmada.recyclarrConfig" -}}
+{{- $root := . -}}
+{{- if $root.Values.recyclarr.config.sonarr -}}
+sonarr:
+{{- range $root.Values.recyclarr.config.sonarr }}
+  {{ .instance_name }}:
+    base_url: {{ include "arrmada.sonarrUrl" $root }}
+    api_key: !env_var SONARR_API_KEY
+    {{- if .quality_definition }}
+    quality_definition:
+{{ .quality_definition | toYaml | indent 6 -}}
+    {{- end }}
+    {{- if .quality_profiles }}
+    quality_profiles:
+{{ .quality_profiles | toYaml | indent 4 -}}
+    {{- end }}
+    {{- if .custom_formats }}
+    custom_formats:
+{{ .custom_formats | toYaml | indent 4 -}}
+    {{- end }}
+    {{- if .delete_old_custom_formats }}
+    delete_old_custom_formats: {{ .delete_old_custom_formats }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- if $root.Values.recyclarr.config.radarr }}
+radarr:
+{{- range $root.Values.recyclarr.config.radarr }}
+  {{ .instance_name }}:
+    base_url: {{ include "arrmada.radarrUrl" $root }}
+    api_key: !env_var RADARR_API_KEY
+    {{- if .quality_definition }}
+    quality_definition:
+{{ .quality_definition | toYaml | indent 6 -}}
+    {{- end }}
+    {{- if .quality_profiles }}
+    quality_profiles:
+{{ .quality_profiles | toYaml | indent 4 -}}
+    {{- end }}
+    {{- if .custom_formats }}
+    custom_formats:
+{{ .custom_formats | toYaml | indent 4 -}}
+    {{- end }}
+    {{- if .delete_old_custom_formats }}
+    delete_old_custom_formats: {{ .delete_old_custom_formats }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

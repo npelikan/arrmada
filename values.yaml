@@ -360,14 +360,52 @@ configSync:
   extraEnvFrom: []
 
 ## ─── Recyclarr ────────────────────────────────────────────────────────────────
-## TRaSH guide sync via Recyclarr CronJob
+## TRaSH guide sync via Recyclarr CronJob.
+## See https://recyclarr.dev for full configuration documentation.
 recyclarr:
-  enabled: false  # Enabled in Phase 6+
+  enabled: false
+
   image:
     repository: ghcr.io/recyclarr/recyclarr
     tag: latest
+    pullPolicy: IfNotPresent
+
+  ## Cron schedule for TRaSH guide sync. Defaults to every 6 hours.
   schedule: "0 */6 * * *"
+
+  ## Optional PVC for Recyclarr's cache (speeds up repeated runs).
   persistence:
     enabled: false
     storageClassName: ""
     size: 1Gi
+    accessMode: ReadWriteOnce
+
+  ## Recyclarr configuration.
+  ## Service URLs are auto-populated from the release name.
+  ## API keys are injected via !env_var from the chart's Secret.
+  config:
+    ## Sonarr instances to sync.
+    ## Field names use snake_case to mirror the recyclarr.yml format.
+    sonarr: []
+    # - instance_name: main         # Used as the YAML key in recyclarr.yml
+    #   quality_definition:
+    #     type: series              # anime or series
+    #   quality_profiles:
+    #     - name: HD-1080p
+    #   custom_formats:
+    #     - trash_ids:
+    #         - 3a3ff47579026a9e4b651ef28c46b981   # DoVi
+    #       assign_scores_to:
+    #         - name: HD-1080p
+    #           score: 0
+    #   delete_old_custom_formats: false
+
+    ## Radarr instances to sync.
+    radarr: []
+    # - instance_name: main
+    #   quality_definition:
+    #     type: movie
+    #   quality_profiles:
+    #     - name: HD-1080p
+    #   custom_formats: []
+    #   delete_old_custom_formats: false

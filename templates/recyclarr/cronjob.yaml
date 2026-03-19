@@ -1,0 +1,60 @@
+{{- if .Values.recyclarr.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "arrmada.fullname" . }}-recyclarr
+  labels:
+    {{- include "arrmada.labels" . | nindent 4 }}
+    app.kubernetes.io/component: recyclarr
+spec:
+  schedule: {{ .Values.recyclarr.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "arrmada.labels" . | nindent 12 }}
+            app.kubernetes.io/component: recyclarr
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
+          containers:
+            - name: recyclarr
+              image: "{{ .Values.recyclarr.image.repository }}:{{ .Values.recyclarr.image.tag }}"
+              imagePullPolicy: {{ .Values.recyclarr.image.pullPolicy }}
+              args: ["sync"]
+              env:
+                ## Sonarr API key — injected by recyclarr.yml !env_var SONARR_API_KEY
+                - name: SONARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "arrmada.secretName" . }}
+                      key: sonarr-api-key
+                ## Radarr API key — injected by recyclarr.yml !env_var RADARR_API_KEY
+                - name: RADARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "arrmada.secretName" . }}
+                      key: radarr-api-key
+              volumeMounts:
+                - name: config
+                  mountPath: /config/recyclarr.yml
+                  subPath: recyclarr.yml
+                  readOnly: true
+                {{- if .Values.recyclarr.persistence.enabled }}
+                - name: cache
+                  mountPath: /config
+                {{- end }}
+          volumes:
+            - name: config
+              configMap:
+                name: {{ include "arrmada.fullname" . }}-recyclarr-config
+            {{- if .Values.recyclarr.persistence.enabled }}
+            - name: cache
+              persistentVolumeClaim:
+                claimName: {{ include "arrmada.fullname" . }}-recyclarr-cache
+            {{- end }}
+{{- end }}

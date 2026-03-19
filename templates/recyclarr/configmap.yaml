@@ -1,0 +1,12 @@
+{{- if .Values.recyclarr.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "arrmada.fullname" . }}-recyclarr-config
+  labels:
+    {{- include "arrmada.labels" . | nindent 4 }}
+    app.kubernetes.io/component: recyclarr
+data:
+  recyclarr.yml: |
+{{- include "arrmada.recyclarrConfig" . | nindent 4 }}
+{{- end }}
