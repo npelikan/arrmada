@@ -1,10 +1,39 @@
 # Managing Prowlarr Indexers
 
-Arrmada manages Prowlarr indexers via a Kubernetes Secret. Indexer configs often
-contain sensitive credentials (API keys, usernames, passwords), so they are
-stored in a Secret rather than inline in `values.yaml`.
+Arrmada supports two workflows for Prowlarr indexer management. Choose the one
+that fits your operational model.
 
-## Workflow
+---
+
+## Workflow A: UI-managed (default)
+
+Leave `prowlarr.config.indexers.existingSecret` empty (the default). Arrmada
+will not touch indexers at all — add, edit, and remove them directly through the
+Prowlarr web UI. This is the simplest option and works well when indexer
+configuration doesn't need to be version-controlled or reproduced across clusters.
+
+```yaml
+prowlarr:
+  config:
+    indexers:
+      existingSecret: ""   # default — indexers managed through the UI
+```
+
+The config sync Job skips the indexer sync step entirely when `existingSecret` is
+unset, so `configSync.deleteUnmanaged` has no effect on indexers.
+
+---
+
+## Workflow B: Declarative (GitOps)
+
+Store indexer definitions in a Kubernetes Secret and reference it from
+`values.yaml`. On each `helm upgrade` the config sync Job will push the
+definitions to Prowlarr via its API (create/update by name, optionally delete
+unmanaged). This is the recommended approach for GitOps workflows where you want
+full reproducibility.
+
+Indexer configs often contain sensitive credentials (API keys, usernames,
+passwords), so they are stored in a Secret rather than inline in `values.yaml`.
 
 ```
 1. Run Prowlarr locally (Docker)
@@ -14,7 +43,7 @@ stored in a Secret rather than inline in `values.yaml`.
 5. Reference in values.yaml
 ```
 
-## Step 1: Run Prowlarr Locally
+### Step 1: Run Prowlarr Locally
 
 Start a temporary Prowlarr container with a local config directory:
 
@@ -28,19 +57,19 @@ docker run -d \
 
 Wait for it to start, then open http://localhost:9696 in your browser.
 
-## Step 2: Get the API Key
+### Step 2: Get the API Key
 
 1. Go to **Settings → General**
 2. Copy the **API Key** shown at the top
 
-## Step 3: Configure Indexers
+### Step 3: Configure Indexers
 
 1. Go to **Indexers** → **Add Indexer**
 2. Search for and configure each indexer you want
 3. Test each indexer to verify connectivity
 4. Take note — Prowlarr will store credentials (API keys, cookies, etc.) for each
 
-## Step 4: Export Indexers
+### Step 4: Export Indexers
 
 Run the export script from the repository root:
 
@@ -65,13 +94,13 @@ data:
 **Security note**: The exported YAML contains sensitive credentials. Do not
 commit it to version control.
 
-## Step 5: Apply the Secret
+### Step 5: Apply the Secret
 
 ```bash
 kubectl apply -n media -f prowlarr-indexers.yaml
 ```
 
-## Step 6: Reference in values.yaml
+### Step 6: Reference in values.yaml
 
 ```yaml
 prowlarr:
@@ -84,7 +113,7 @@ prowlarr:
 On the next `helm upgrade`, the config sync Job will mount the Secret and
 push the indexer definitions to Prowlarr via its API.
 
-## Updating Indexers
+### Updating Indexers
 
 To add or update indexers:
 
@@ -101,7 +130,7 @@ kubectl delete job -n media arrmada-config-sync
 helm upgrade arrmada . -n media -f values.yaml
 ```
 
-## Using the In-Cluster Prowlarr
+### Using the In-Cluster Prowlarr
 
 If Prowlarr is already running in your cluster, you can export directly from it:
 
@@ -120,7 +149,7 @@ API_KEY=$(kubectl get secret -n media arrmada-secrets \
 kill %1
 ```
 
-## Secret Format Reference
+### Secret Format Reference
 
 The `indexers.json` key contains a JSON array where each element is a Prowlarr
 indexer object. The structure mirrors the Prowlarr `/api/v1/indexer` API response

@@ -373,11 +373,21 @@ prowlarr:
       #     - name: syncCategories
       #       value: [5000, 5010, 5020, 5030, 5040, 5045, 5050]
 
-    ## Indexers — loaded from an existing Kubernetes Secret.
-    ## Use scripts/prowlarr-export.sh to generate the Secret from a local Prowlarr instance.
+    ## Indexers — two supported workflows:
+    ##
+    ## 1. Declarative (recommended for GitOps):
+    ##    Set existingSecret to a Kubernetes Secret containing indexer definitions.
+    ##    Use scripts/prowlarr-export.sh to generate the Secret from a running Prowlarr instance.
+    ##    On each helm upgrade the config sync Job will push the definitions to Prowlarr via API.
+    ##    See docs/prowlarr-indexers.md for the full workflow.
+    ##
+    ## 2. UI-managed:
+    ##    Leave existingSecret empty (""). The config sync Job will not touch indexers at all —
+    ##    add, edit, and remove indexers directly through the Prowlarr web UI.
+    ##    Note: configSync.deleteUnmanaged does NOT affect indexers when existingSecret is unset.
     indexers:
       ## Name of the Secret containing indexer definitions.
-      ## The Secret must have a key matching secretKey (default: indexers.json).
+      ## Leave empty to manage indexers through the Prowlarr UI instead.
       existingSecret: ""
       secretKey: "indexers.json"
 
