@@ -42,6 +42,16 @@ global:
       mainDatabase: prowlarr-main
       logDatabase: prowlarr-log
 
+  ## Shared media volumes — mounted by Sonarr, Radarr, and rtorrent at identical paths.
+  ## All PVCs must be ReadWriteMany (multiple pods access them simultaneously).
+  media:
+    - name: data
+      mountPath: /data
+      existingClaim: pvc-nfs-data   # pre-provisioned ReadWriteMany NFS PVC
+      downloadDir: /data/downloads  # rtorrent saves completed downloads here
+      tvDir: /data/tv               # auto-added to Sonarr root folders
+      moviesDir: /data/movies       # auto-added to Radarr root folders
+
 ## ─── Sonarr ──────────────────────────────────────────────────────────────────
 sonarr:
   enabled: true
@@ -51,15 +61,6 @@ sonarr:
       enabled: true
       storageClassName: fast-ssd
       size: 5Gi
-
-    ## Existing NFS PVCs for media
-    media:
-      - name: downloads
-        claimName: pvc-nfs-downloads
-        mountPath: /downloads
-      - name: tv
-        claimName: pvc-nfs-tv
-        mountPath: /tv
 
   ## Dual ingress: nginx (external) + tailscale (VPN)
   ingress:
@@ -92,8 +93,9 @@ sonarr:
       - label: 4k
       - label: hdr
 
-    rootFolders:
-      - path: /tv
+    ## global.media[*].tvDir is automatically added as a root folder.
+    ## List any extra paths here.
+    rootFolders: []
 
     naming:
       renameEpisodes: true
@@ -135,13 +137,6 @@ radarr:
       enabled: true
       storageClassName: fast-ssd
       size: 5Gi
-    media:
-      - name: downloads
-        claimName: pvc-nfs-downloads
-        mountPath: /downloads
-      - name: movies
-        claimName: pvc-nfs-movies
-        mountPath: /movies
 
   ingress:
     - name: nginx
@@ -168,8 +163,8 @@ radarr:
               pathType: Prefix
 
   config:
-    rootFolders:
-      - path: /movies
+    ## global.media[*].moviesDir is automatically added as a root folder.
+    rootFolders: []
 
     naming:
       renameMovies: true
