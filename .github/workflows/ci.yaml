@@ -49,11 +49,21 @@ jobs:
         with:
           cluster_name: arrmada-test
 
-      - name: Install local-path-provisioner
+      - name: Create local-path storage class
+        # kind ships with rancher/local-path-provisioner already running but
+        # names its default StorageClass "standard". Our test values reference
+        # "local-path" explicitly, so create that alias without touching the
+        # existing provisioner deployment or its ConfigMap.
         run: |
-          kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.30/deploy/local-path-storage.yaml
-          kubectl rollout status deployment/local-path-provisioner \
-            -n local-path-storage --timeout=60s
+          cat <<EOF | kubectl apply -f -
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: local-path
+          provisioner: rancher.io/local-path
+          volumeBindingMode: WaitForFirstConsumer
+          reclaimPolicy: Delete
+          EOF
 
       - name: Write kubeconfig for test scripts
         run: kubectl config view --raw > tests/.kubeconfig
