@@ -37,6 +37,7 @@ global:
     - name: data
       mountPath: /data
       storageClassName: local-path
+      accessMode: ReadWriteOnce
       size: 5Gi
       downloadDir: /data/downloads
       tvDir: /data/tv

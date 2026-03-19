@@ -167,6 +167,7 @@
         "mountPath":        { "type": "string", "minLength": 1 },
         "storageClassName": { "type": "string" },
         "size":             { "type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?(e[0-9]+)?[EPTGMK]i?|[0-9]+)$" },
+        "accessMode":       { "$ref": "#/$defs/accessMode" },
         "existingClaim":    { "type": "string" },
         "downloadDir":      { "type": "string" },
         "tvDir":            { "type": "string" },

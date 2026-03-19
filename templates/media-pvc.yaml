@@ -8,10 +8,8 @@ metadata:
   labels:
     {{- include "arrmada.labels" $ | nindent 4 }}
 spec:
-  # ReadWriteMany is required: Sonarr, Radarr, and rtorrent all mount this volume
-  # simultaneously. Pre-existing PVCs (existingClaim) must also be ReadWriteMany.
   accessModes:
-    - ReadWriteMany
+    - {{ .accessMode | default "ReadWriteMany" }}
   {{- if .storageClassName }}
   storageClassName: {{ .storageClassName | quote }}
   {{- end }}
