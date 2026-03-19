@@ -35,16 +35,16 @@ check() {
   fi
 }
 
-# Port-forward helper — starts a port-forward in background and registers it for cleanup
+# Port-forward helper — starts a port-forward in background and registers it for cleanup.
+# Sets the global PF_LAST_PID to the background process ID.
 start_pf() {
   local svc="$1" port="$2" local_port="$3"
   kubectl port-forward \
     --kubeconfig "${KUBECONFIG}" \
     -n "${NAMESPACE}" \
     "svc/${RELEASE}-${svc}" "${local_port}:${port}" &
-  local pid=$!
-  PF_PIDS+=("${pid}")
-  echo "${pid}"
+  PF_LAST_PID=$!
+  PF_PIDS+=("${PF_LAST_PID}")
 }
 
 # Fetch the API key from the chart Secret
@@ -63,7 +63,7 @@ PROWLARR_KEY="$(get_api_key "prowlarr-api-key")"
 
 echo ""
 echo "=== Sonarr API state ==="
-SONARR_PF_PID=$(start_pf sonarr 8989 28989)
+start_pf sonarr 8989 28989; SONARR_PF_PID="${PF_LAST_PID}"
 sleep 3
 
 # Root folders
@@ -81,7 +81,7 @@ wait "${SONARR_PF_PID}" 2>/dev/null || true
 
 echo ""
 echo "=== Radarr API state ==="
-RADARR_PF_PID=$(start_pf radarr 7878 27878)
+start_pf radarr 7878 27878; RADARR_PF_PID="${PF_LAST_PID}"
 sleep 3
 
 root_folders=$(curl -s -H "X-Api-Key: ${RADARR_KEY}" \
@@ -93,7 +93,7 @@ wait "${RADARR_PF_PID}" 2>/dev/null || true
 
 echo ""
 echo "=== Prowlarr API state ==="
-PROWLARR_PF_PID=$(start_pf prowlarr 9696 29696)
+start_pf prowlarr 9696 29696; PROWLARR_PF_PID="${PF_LAST_PID}"
 sleep 3
 
 system_status=$(curl -s -H "X-Api-Key: ${PROWLARR_KEY}" \
