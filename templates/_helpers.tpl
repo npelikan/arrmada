@@ -134,6 +134,73 @@ Internal service URL for rtorrent (Flood UI / XML-RPC).
 {{- end }}
 
 {{/*
+Volume mount entries for all global.media volumes.
+Outputs YAML list items without a leading newline; use with nindent.
+*/}}
+{{- define "arrmada.globalMediaVolumeMounts" -}}
+{{- range $i, $v := .Values.global.media -}}
+{{- if gt $i 0 }}
+{{ end -}}
+- name: media-{{ $v.name }}
+  mountPath: {{ $v.mountPath }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Volume definitions for all global.media volumes.
+Outputs YAML list items without a leading newline; use with nindent.
+*/}}
+{{- define "arrmada.globalMediaVolumes" -}}
+{{- $root := . -}}
+{{- range $i, $v := .Values.global.media -}}
+{{- if gt $i 0 }}
+{{ end -}}
+- name: media-{{ $v.name }}
+  persistentVolumeClaim:
+    claimName: {{ $v.existingClaim | default (printf "%s-media-%s" (include "arrmada.fullname" $root) $v.name) }}
+{{- end -}}
+{{- end }}
+
+{{/*
+Sonarr root folders: merges explicit sonarr.config.rootFolders with tvDir entries
+from each global.media volume. Returns a JSON array.
+*/}}
+{{- define "arrmada.sonarrRootFolders" -}}
+{{- $folders := .Values.sonarr.config.rootFolders | default list -}}
+{{- range .Values.global.media -}}
+  {{- if .tvDir -}}
+    {{- $folders = append $folders (dict "path" .tvDir) -}}
+  {{- end -}}
+{{- end -}}
+{{- $folders | toJson -}}
+{{- end }}
+
+{{/*
+Radarr root folders: merges explicit radarr.config.rootFolders with moviesDir entries
+from each global.media volume. Returns a JSON array.
+*/}}
+{{- define "arrmada.radarrRootFolders" -}}
+{{- $folders := .Values.radarr.config.rootFolders | default list -}}
+{{- range .Values.global.media -}}
+  {{- if .moviesDir -}}
+    {{- $folders = append $folders (dict "path" .moviesDir) -}}
+  {{- end -}}
+{{- end -}}
+{{- $folders | toJson -}}
+{{- end }}
+
+{{/*
+Returns a non-empty string if any global.media entry has a downloadDir set.
+Use with `if include "arrmada.rtorrentHasDownloadDirs" .` to conditionally
+render the rtorrent download-directory init container.
+*/}}
+{{- define "arrmada.rtorrentHasDownloadDirs" -}}
+{{- range .Values.global.media -}}
+  {{- if .downloadDir -}}true{{- end -}}
+{{- end -}}
+{{- end }}
+
+{{/*
 Auto-generate the rTorrent download client entry for Sonarr.
 Returns a JSON object (not array) representing one download client.
 */}}

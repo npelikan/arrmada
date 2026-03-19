@@ -54,17 +54,34 @@ global:
       mainDatabase: prowlarr-main
       logDatabase: prowlarr-log
 
-  ## Shared media PVC mounted by Sonarr, Radarr, and rtorrent at the same path.
-  ## All three services must use the same mountPath for cross-service file access.
-  media:
-    enabled: false
-    ## Use a pre-existing PVC instead of creating one. Leave empty to create.
-    existingClaim: ""
-    storageClassName: ""
-    size: 100Gi
-    accessMode: ReadWriteOnce
-    ## Mount path used by all services. Must be identical across sonarr, radarr, rtorrent.
-    mountPath: /data
+  ## Shared media volumes mounted by Sonarr, Radarr, and rtorrent at the same paths.
+  ## Add one entry per physical storage volume (e.g. one NAS share per entry).
+  ##
+  ## IMPORTANT: All PVCs must be ReadWriteMany — Sonarr, Radarr, and rtorrent
+  ## access these volumes simultaneously. Auto-created PVCs enforce ReadWriteMany.
+  ## Pre-existing PVCs (existingClaim) must also be provisioned as ReadWriteMany.
+  ##
+  ## Each entry:
+  ##   name:             identifier; used in volume name (media-{name}) and PVC name
+  ##                     ({release}-media-{name})
+  ##   mountPath:        where the volume is mounted in every service container
+  ##   storageClassName: storage class for auto-created PVC; "" = cluster default
+  ##   size:             storage size for auto-created PVC
+  ##   existingClaim:    use a pre-existing PVC; leave empty to auto-create
+  ##   downloadDir:      path rtorrent saves completed downloads; init container creates it
+  ##   tvDir:            path auto-added to Sonarr root folders; init container creates it
+  ##   moviesDir:        path auto-added to Radarr root folders; init container creates it
+  ##
+  ## Example:
+  ##   media:
+  ##     - name: data
+  ##       mountPath: /data
+  ##       storageClassName: nfs-csi
+  ##       size: 10Ti
+  ##       downloadDir: /data/downloads
+  ##       tvDir: /data/tv
+  ##       moviesDir: /data/movies
+  media: []
 
 ## Service account configuration
 serviceAccount:
@@ -102,14 +119,7 @@ sonarr:
       size: 1Gi
       accessMode: ReadWriteOnce
 
-    ## Additional media volumes (existing PVCs)
-    ## - name: downloads
-    ##   claimName: pvc-nfs-downloads
-    ##   mountPath: /downloads
-    ## - name: tv
-    ##   claimName: pvc-nfs-tv
-    ##   mountPath: /tv
-    media: []
+    ## Media volumes are now provided by global.media; no per-service volumes needed.
 
   ## Ingress definitions (list, supports multiple ingress controllers)
   ingress: []
@@ -136,9 +146,10 @@ sonarr:
     tags: []
     # - label: 4k
 
-    ## Root folders — media library paths
+    ## Root folders — media library paths.
+    ## global.media[*].tvDir entries are automatically added; list extra paths here.
     rootFolders: []
-    # - path: /tv
+    # - path: /extra-tv
 
     ## Quality definitions — override minSize/maxSize/preferredSize per quality tier.
     ## Items are matched by title. The specified fields are merged into the full
@@ -273,15 +284,16 @@ radarr:
       size: 1Gi
       accessMode: ReadWriteOnce
 
-    media: []
+    ## Media volumes are now provided by global.media; no per-service volumes needed.
 
   ingress: []
 
   config:
     urlBase: ""
     tags: []
+    ## global.media[*].moviesDir entries are automatically added; list extra paths here.
     rootFolders: []
-    # - path: /movies
+    # - path: /extra-movies
     qualityDefinitions: []
     customFormats: []
     qualityProfiles: []
@@ -406,10 +418,7 @@ rtorrent:
 
   ingress: []
 
-  config:
-    ## Download directory for completed torrents. Must be under global.media.mountPath
-    ## when global.media.enabled is true.
-    downloadDir: /data/downloads
+  ## Download directories are configured per-volume via global.media[*].downloadDir.
 
 ## ─── Config Sync ──────────────────────────────────────────────────────────────
 ## Helm hook Job that syncs declarative config to all services after install/upgrade

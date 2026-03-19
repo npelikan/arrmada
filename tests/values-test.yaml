@@ -34,11 +34,13 @@ global:
       logDatabase: prowlarr-log
 
   media:
-    enabled: true
-    storageClassName: local-path
-    size: 5Gi
-    accessMode: ReadWriteOnce
-    mountPath: /data
+    - name: data
+      mountPath: /data
+      storageClassName: local-path
+      size: 5Gi
+      downloadDir: /data/downloads
+      tvDir: /data/tv
+      moviesDir: /data/movies
 
 sonarr:
   enabled: true
@@ -48,8 +50,6 @@ sonarr:
       storageClassName: local-path
       size: 1Gi
   config:
-    rootFolders:
-      - path: /data/tv
     tags:
       - label: test-tag
 
@@ -60,9 +60,6 @@ radarr:
       enabled: true
       storageClassName: local-path
       size: 1Gi
-  config:
-    rootFolders:
-      - path: /data/movies
 
 prowlarr:
   enabled: true

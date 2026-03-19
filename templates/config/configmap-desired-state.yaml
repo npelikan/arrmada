@@ -11,7 +11,7 @@ data:
   sonarr-tags.json: |
     {{ .Values.sonarr.config.tags | default list | toJson }}
   sonarr-rootfolders.json: |
-    {{ .Values.sonarr.config.rootFolders | default list | toJson }}
+    {{ include "arrmada.sonarrRootFolders" . }}
   sonarr-qualitydefinitions.json: |
     {{ .Values.sonarr.config.qualityDefinitions | default list | toJson }}
   sonarr-customformats.json: |
@@ -41,7 +41,7 @@ data:
   radarr-tags.json: |
     {{ .Values.radarr.config.tags | default list | toJson }}
   radarr-rootfolders.json: |
-    {{ .Values.radarr.config.rootFolders | default list | toJson }}
+    {{ include "arrmada.radarrRootFolders" . }}
   radarr-qualitydefinitions.json: |
     {{ .Values.radarr.config.qualityDefinitions | default list | toJson }}
   radarr-customformats.json: |

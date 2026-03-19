@@ -22,6 +22,9 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
+      {{- $explicitRoots := .Values.radarr.config.rootFolders | default list -}}
+      {{- $hasAutoRoots := false -}}
+      {{- range .Values.global.media -}}{{- if .moviesDir -}}{{- $hasAutoRoots = true -}}{{- end -}}{{- end }}
       initContainers:
         - name: init-config
           image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
@@ -54,7 +57,7 @@ spec:
               mountPath: /config
             - name: init-scripts
               mountPath: /scripts
-        {{- if and .Values.radarr.config.rootFolders (or .Values.radarr.persistence.media .Values.global.media.enabled) }}
+        {{- if or $explicitRoots $hasAutoRoots }}
         - name: create-root-folders
           image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
           command:
@@ -62,9 +65,15 @@ spec:
             - -c
             - |
               set -e
-              {{- range .Values.radarr.config.rootFolders }}
+              {{- range $explicitRoots }}
               mkdir -p {{ .path | quote }}
               chown "${PUID}:${PGID}" {{ .path | quote }} 2>/dev/null || true
+              {{- end }}
+              {{- range .Values.global.media }}
+              {{- if .moviesDir }}
+              mkdir -p {{ .moviesDir | quote }}
+              chown "${PUID}:${PGID}" {{ .moviesDir | quote }} 2>/dev/null || true
+              {{- end }}
               {{- end }}
           env:
             - name: PUID
@@ -72,14 +81,7 @@ spec:
             - name: PGID
               value: {{ .Values.global.env.PGID | default "1000" | quote }}
           volumeMounts:
-            {{- range .Values.radarr.persistence.media }}
-            - name: {{ .name }}
-              mountPath: {{ .mountPath }}
-            {{- end }}
-            {{- if .Values.global.media.enabled }}
-            - name: global-media
-              mountPath: {{ .Values.global.media.mountPath }}
-            {{- end }}
+            {{- include "arrmada.globalMediaVolumeMounts" . | nindent 12 }}
         {{- end }}
       containers:
         - name: radarr
@@ -120,14 +122,7 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            {{- range .Values.radarr.persistence.media }}
-            - name: {{ .name }}
-              mountPath: {{ .mountPath }}
-            {{- end }}
-            {{- if .Values.global.media.enabled }}
-            - name: global-media
-              mountPath: {{ .Values.global.media.mountPath }}
-            {{- end }}
+            {{- include "arrmada.globalMediaVolumeMounts" . | nindent 12 }}
       volumes:
         - name: config
           {{- if .Values.radarr.persistence.config.enabled }}
@@ -140,22 +135,7 @@ spec:
           configMap:
             name: {{ include "arrmada.componentName" (dict "root" . "component" "radarr") }}-init
             defaultMode: 0755
-        {{- range .Values.radarr.persistence.media }}
-        - name: {{ .name }}
-          {{- if .emptyDir }}
-          emptyDir: {}
-          {{- else if .claimName }}
-          persistentVolumeClaim:
-            claimName: {{ .claimName }}
-          {{- else }}
-          {{- fail (printf "radarr persistence.media entry '%s' must set either emptyDir or claimName" .name) }}
-          {{- end }}
-        {{- end }}
-        {{- if .Values.global.media.enabled }}
-        - name: global-media
-          persistentVolumeClaim:
-            claimName: {{ .Values.global.media.existingClaim | default (printf "%s-media" (include "arrmada.fullname" .)) }}
-        {{- end }}
+        {{- include "arrmada.globalMediaVolumes" . | nindent 8 }}
       {{- with .Values.radarr.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

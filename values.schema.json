@@ -41,16 +41,8 @@
           }
         },
         "media": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "enabled":          { "type": "boolean" },
-            "existingClaim":    { "type": "string" },
-            "storageClassName": { "type": "string" },
-            "size":             { "type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?(e[0-9]+)?[EPTGMK]i?|[0-9]+)$" },
-            "accessMode":       { "$ref": "#/$defs/accessMode" },
-            "mountPath":        { "type": "string", "minLength": 1 }
-          }
+          "type": "array",
+          "items": { "$ref": "#/$defs/mediaEntry" }
         },
         "utility": {
           "type": "object",
@@ -166,6 +158,21 @@
         "logDatabase":  { "type": "string" }
       }
     },
+    "mediaEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "mountPath"],
+      "properties": {
+        "name":             { "type": "string", "minLength": 1 },
+        "mountPath":        { "type": "string", "minLength": 1 },
+        "storageClassName": { "type": "string" },
+        "size":             { "type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?(e[0-9]+)?[EPTGMK]i?|[0-9]+)$" },
+        "existingClaim":    { "type": "string" },
+        "downloadDir":      { "type": "string" },
+        "tvDir":            { "type": "string" },
+        "moviesDir":        { "type": "string" }
+      }
+    },
     "ingressEntry": {
       "type": "object",
       "additionalProperties": false,
@@ -232,20 +239,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "config": { "$ref": "#/$defs/persistence" },
-        "media": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["name", "mountPath"],
-            "properties": {
-              "name":      { "type": "string", "minLength": 1 },
-              "claimName": { "type": "string", "minLength": 1 },
-              "mountPath": { "type": "string", "minLength": 1 },
-              "emptyDir":  { "type": "boolean" }
-            }
-          }
-        }
+        "config": { "$ref": "#/$defs/persistence" }
       }
     },
     "mediaService": {
@@ -307,13 +301,6 @@
         "ingress": {
           "type": "array",
           "items": { "$ref": "#/$defs/ingressEntry" }
-        },
-        "config": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "downloadDir": { "type": "string", "minLength": 1 }
-          }
         },
         "nodeSelector":   { "type": "object" },
         "tolerations": {

@@ -1,0 +1,127 @@
+suite: rtorrent deployment
+templates:
+  - rtorrent/deployment.yaml
+values:
+  - ../values-test.yaml
+tests:
+  - it: should not create deployment when disabled
+    set:
+      rtorrent.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should create deployment when enabled
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-arrmada-rtorrent
+
+  - it: should use correct container image
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ghcr\.io/hotio/rtorrent
+
+  - it: should use Recreate update strategy
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: should expose port 8080
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8080
+
+  - it: should have readiness probe
+    asserts:
+      - isNotEmpty:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should set PUID and PGID env vars
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PUID
+            value: "1000"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGID
+            value: "1000"
+
+  - it: should mount config volume
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+          any: true
+
+  - it: should use PVC for config when persistence enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-arrmada-rtorrent-config
+
+  - it: should use emptyDir for config when persistence disabled
+    set:
+      rtorrent.persistence.config.enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            emptyDir: {}
+
+  - it: should include global media volumes
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: media-data
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-arrmada-media-data
+          any: true
+
+  - it: should mount global media volumes in container
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: media-data
+            mountPath: /data
+          any: true
+
+  - it: should create download-dirs init container when downloadDir set
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers
+          content:
+            name: create-download-dirs
+          any: true
+
+  - it: should not have init container when no downloadDirs defined
+    set:
+      global.media:
+        - name: data
+          mountPath: /data
+          storageClassName: local-path
+          size: 5Gi
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+
+  - it: should set component label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: rtorrent
