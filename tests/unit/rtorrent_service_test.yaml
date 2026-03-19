@@ -1,0 +1,66 @@
+suite: rtorrent service
+templates:
+  - rtorrent/service.yaml
+values:
+  - ../values-test.yaml
+tests:
+  - it: should create service when enabled
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-arrmada-rtorrent
+
+  - it: should not create service when disabled
+    set:
+      rtorrent.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should default to ClusterIP type
+    asserts:
+      - equal:
+          path: spec.type
+          value: ClusterIP
+
+  - it: should expose port 8080
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 8080
+
+  - it: should use named port http
+    asserts:
+      - equal:
+          path: spec.ports[0].name
+          value: http
+
+  - it: should select pods with component label
+    asserts:
+      - equal:
+          path: spec.selector["app.kubernetes.io/component"]
+          value: rtorrent
+
+  - it: should set component label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: rtorrent
+
+  - it: should respect custom service type
+    set:
+      rtorrent.service.type: LoadBalancer
+    asserts:
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+
+  - it: should respect custom service port
+    set:
+      rtorrent.service.port: 9090
+    asserts:
+      - equal:
+          path: spec.ports[0].port
+          value: 9090

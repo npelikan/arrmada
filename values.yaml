@@ -396,7 +396,7 @@ prowlarr:
 ## appear as a duplicate alongside the auto-generated one. Rename the manual
 ## entry or remove it to avoid duplicates.
 rtorrent:
-  enabled: false
+  enabled: true
 
   image:
     repository: ghcr.io/hotio/rtorrent

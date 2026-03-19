@@ -1,0 +1,51 @@
+suite: rtorrent pvc
+templates:
+  - rtorrent/pvc.yaml
+values:
+  - ../values-test.yaml
+tests:
+  - it: should create PVC when enabled
+    asserts:
+      - isKind:
+          of: PersistentVolumeClaim
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-arrmada-rtorrent-config
+
+  - it: should not create PVC when rtorrent disabled
+    set:
+      rtorrent.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should not create PVC when persistence disabled
+    set:
+      rtorrent.persistence.config.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should use configured storage size
+    asserts:
+      - equal:
+          path: spec.resources.requests.storage
+          value: 1Gi
+
+  - it: should use configured storage class
+    asserts:
+      - equal:
+          path: spec.storageClassName
+          value: local-path
+
+  - it: should use ReadWriteOnce access mode
+    asserts:
+      - contains:
+          path: spec.accessModes
+          content: ReadWriteOnce
+
+  - it: should set component label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: rtorrent
