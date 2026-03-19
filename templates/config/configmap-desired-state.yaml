@@ -12,6 +12,28 @@ data:
     {{ .Values.sonarr.config.tags | default list | toJson }}
   sonarr-rootfolders.json: |
     {{ .Values.sonarr.config.rootFolders | default list | toJson }}
+  sonarr-qualitydefinitions.json: |
+    {{ .Values.sonarr.config.qualityDefinitions | default list | toJson }}
+  sonarr-customformats.json: |
+    {{ .Values.sonarr.config.customFormats | default list | toJson }}
+  sonarr-qualityprofiles.json: |
+    {{ .Values.sonarr.config.qualityProfiles | default list | toJson }}
+  sonarr-delayprofiles.json: |
+    {{ .Values.sonarr.config.delayProfiles | default list | toJson }}
+  sonarr-downloadclients.json: |
+    {{ .Values.sonarr.config.downloadClients | default list | toJson }}
+  sonarr-notifications.json: |
+    {{ .Values.sonarr.config.notifications | default list | toJson }}
+  sonarr-importlists.json: |
+    {{ .Values.sonarr.config.importLists | default list | toJson }}
+  sonarr-naming.json: |
+    {{ .Values.sonarr.config.naming | default dict | toJson }}
+  sonarr-mediamanagement.json: |
+    {{ .Values.sonarr.config.mediaManagement | default dict | toJson }}
+  sonarr-host.json: |
+    {{ .Values.sonarr.config.host | default dict | toJson }}
+  sonarr-ui.json: |
+    {{ .Values.sonarr.config.ui | default dict | toJson }}
   {{- end }}
 
   {{- /* ── Radarr ──────────────────────────────────────────────────────── */}}
@@ -20,11 +42,43 @@ data:
     {{ .Values.radarr.config.tags | default list | toJson }}
   radarr-rootfolders.json: |
     {{ .Values.radarr.config.rootFolders | default list | toJson }}
+  radarr-qualitydefinitions.json: |
+    {{ .Values.radarr.config.qualityDefinitions | default list | toJson }}
+  radarr-customformats.json: |
+    {{ .Values.radarr.config.customFormats | default list | toJson }}
+  radarr-qualityprofiles.json: |
+    {{ .Values.radarr.config.qualityProfiles | default list | toJson }}
+  radarr-delayprofiles.json: |
+    {{ .Values.radarr.config.delayProfiles | default list | toJson }}
+  radarr-downloadclients.json: |
+    {{ .Values.radarr.config.downloadClients | default list | toJson }}
+  radarr-notifications.json: |
+    {{ .Values.radarr.config.notifications | default list | toJson }}
+  radarr-importlists.json: |
+    {{ .Values.radarr.config.importLists | default list | toJson }}
+  radarr-naming.json: |
+    {{ .Values.radarr.config.naming | default dict | toJson }}
+  radarr-mediamanagement.json: |
+    {{ .Values.radarr.config.mediaManagement | default dict | toJson }}
+  radarr-host.json: |
+    {{ .Values.radarr.config.host | default dict | toJson }}
+  radarr-ui.json: |
+    {{ .Values.radarr.config.ui | default dict | toJson }}
   {{- end }}
 
   {{- /* ── Prowlarr ────────────────────────────────────────────────────── */}}
   {{- if .Values.prowlarr.enabled }}
   prowlarr-tags.json: |
     {{ .Values.prowlarr.config.tags | default list | toJson }}
+  prowlarr-downloadclients.json: |
+    {{ .Values.prowlarr.config.downloadClients | default list | toJson }}
+  prowlarr-notifications.json: |
+    {{ .Values.prowlarr.config.notifications | default list | toJson }}
+  prowlarr-applications.json: |
+    {{ .Values.prowlarr.config.applications | default list | toJson }}
+  prowlarr-host.json: |
+    {{ .Values.prowlarr.config.host | default dict | toJson }}
+  prowlarr-ui.json: |
+    {{ .Values.prowlarr.config.ui | default dict | toJson }}
   {{- end }}
 {{- end }}

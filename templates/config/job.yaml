@@ -71,6 +71,10 @@ spec:
                   name: {{ include "arrmada.secretName" . }}
                   key: prowlarr-api-key
 
+          {{- with .Values.configSync.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: scripts
               mountPath: /scripts

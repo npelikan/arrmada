@@ -111,3 +111,67 @@ sync_singleton() {
 
   info "Done syncing singleton ${resource}"
 }
+
+# sync_quality_definitions <base_url> <api_version> <api_key> <desired_json>
+#
+# Quality definitions always exist (they cannot be created or deleted).
+# Matches by title and PUTs updates for any desired items found in the current list.
+sync_quality_definitions() {
+  local base_url="$1" api_version="$2" api_key="$3" desired="$4"
+
+  info "Syncing qualitydefinition..."
+
+  local current
+  current=$(api_get "${base_url}" "${api_version}" "${api_key}" "qualitydefinition") || {
+    error "Failed to GET qualitydefinition"
+    return 1
+  }
+
+  local desired_count
+  desired_count=$(echo "${desired}" | jq 'length')
+
+  local i=0
+  while [ "${i}" -lt "${desired_count}" ]; do
+    local item title existing_id merged
+
+    item=$(echo "${desired}" | jq ".[${i}]")
+    title=$(echo "${item}" | jq -r '.title // empty')
+
+    if [ -z "${title}" ]; then
+      warn "  Quality definition at index ${i} has no title, skipping"
+      i=$((i + 1))
+      continue
+    fi
+
+    existing_id=$(echo "${current}" | jq -r \
+      --arg t "${title}" '.[] | select(.title == $t) | .id // empty')
+
+    if [ -z "${existing_id}" ]; then
+      warn "  Quality definition '${title}' not found in current list, skipping"
+    else
+      info "  Updating qualitydefinition: ${title} (id=${existing_id})"
+      merged=$(echo "${item}" | jq --argjson id "${existing_id}" '. + {id: $id}')
+      api_put "${base_url}" "${api_version}" "${api_key}" "qualitydefinition" \
+        "${existing_id}" "${merged}" \
+        || warn "  Failed to update qualitydefinition: ${title}"
+    fi
+
+    i=$((i + 1))
+  done
+
+  info "Done syncing qualitydefinition"
+}
+
+# resolve_env_vars <json_string>
+#
+# Substitutes ${VAR} patterns in a JSON string using envsubst (from gettext).
+# If envsubst is unavailable, the string is returned unchanged with a warning.
+resolve_env_vars() {
+  local input="$1"
+  if command -v envsubst > /dev/null 2>&1; then
+    printf '%s' "${input}" | envsubst
+  else
+    warn "envsubst not available; ${ENV_VAR} patterns will not be resolved"
+    printf '%s' "${input}"
+  fi
+}

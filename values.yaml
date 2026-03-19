@@ -109,12 +109,122 @@ sonarr:
   ## Declarative configuration (synced via API on install/upgrade)
   config:
     urlBase: ""
-    ## Root folders (media library paths)
-    rootFolders: []
-    # - path: /tv
-    ## Tags
+
+    ## Tags — synced first (other resources reference tag IDs by label)
     tags: []
     # - label: 4k
+
+    ## Root folders — media library paths
+    rootFolders: []
+    # - path: /tv
+
+    ## Quality definitions — override minSize/maxSize/preferredSize per quality tier.
+    ## Items are matched by title. Only the fields you specify are changed.
+    qualityDefinitions: []
+    # - title: Bluray-1080p
+    #   minSize: 5
+    #   maxSize: 200
+    #   preferredSize: 95
+
+    ## Custom formats — see Sonarr API for full schema.
+    ## Matched by name; created if absent, updated if changed.
+    customFormats: []
+    # - name: "DoVi"
+    #   includeCustomFormatWhenRenaming: false
+    #   specifications:
+    #     - name: "DV"
+    #       implementation: "ReleaseTitleSpecification"
+    #       negate: false
+    #       required: true
+    #       fields:
+    #         - name: value
+    #           value: "\\bDV\\b|\\bDoVi\\b"
+
+    ## Quality profiles — matched by name.
+    ## Tip: use Recyclarr for TRaSH-guide profiles. Define custom ones here.
+    qualityProfiles: []
+    # - name: "HD-1080p"
+    #   upgradeAllowed: true
+    #   cutoff: 19
+    #   minFormatScore: 0
+    #   cutoffFormatScore: 0
+    #   items:
+    #     - quality: {id: 19, name: "Bluray-1080p"}
+    #       items: []
+    #       allowed: true
+
+    ## Delay profiles — matched by id. The default profile is always id: 1.
+    delayProfiles: []
+    # - id: 1
+    #   enableUsenet: true
+    #   enableTorrent: true
+    #   usenetDelay: 0
+    #   torrentDelay: 0
+    #   bypassIfHighestQuality: true
+    #   tags: []
+
+    ## Download clients — matched by name.
+    ## Use ${ENV_VAR} syntax for sensitive values (host, password, apiKey).
+    ## Mount the secret via configSync.extraEnvFrom.
+    downloadClients: []
+    # - name: "qBittorrent"
+    #   enable: true
+    #   implementation: "QBittorrent"
+    #   configContract: "QBittorrentSettings"
+    #   fields:
+    #     - name: host
+    #       value: "${QBIT_HOST}"
+    #     - name: port
+    #       value: 8080
+    #     - name: username
+    #       value: admin
+    #     - name: password
+    #       value: "${QBIT_PASSWORD}"
+
+    ## Notifications — matched by name.
+    notifications: []
+    # - name: "Telegram"
+    #   implementation: "Telegram"
+    #   configContract: "TelegramSettings"
+    #   onGrab: true
+    #   onDownload: true
+    #   fields:
+    #     - name: botToken
+    #       value: "${TELEGRAM_BOT_TOKEN}"
+    #     - name: chatId
+    #       value: "${TELEGRAM_CHAT_ID}"
+
+    ## Import lists — matched by name.
+    importLists: []
+
+    ## Naming configuration (singleton PUT). Leave empty to skip.
+    naming: {}
+    # renameEpisodes: true
+    # replaceIllegalCharacters: true
+    # colonReplacementFormat: "delete"
+    # standardEpisodeFormat: "{Series TitleYear} - S{season:00}E{episode:00} - {Episode CleanTitle} [{Custom Formats }{Quality Full}]{-Release Group}"
+    # seriesFolderFormat: "{Series TitleYear}"
+    # seasonFolderFormat: "Season {season:00}"
+
+    ## Media management (singleton PUT). Leave empty to skip.
+    mediaManagement: {}
+    # autoUnmonitorPreviouslyDownloadedEpisodes: false
+    # recycleBin: ""
+    # autoRenameFolders: false
+
+    ## Host settings (singleton PUT). Leave empty to skip.
+    host: {}
+    # analyticsEnabled: false
+    # logLevel: info
+
+    ## UI settings (singleton PUT). Leave empty to skip.
+    ui: {}
+    # firstDayOfWeek: 0
+    # calendarWeekColumnHeader: ddd M/D
+    # shortDateFormat: MMM D YYYY
+    # longDateFormat: dddd, MMMM D YYYY
+    # timeFormat: h(:mm)a
+    # showRelativeDates: true
 
 ## ─── Radarr ───────────────────────────────────────────────────────────────────
 radarr:
@@ -144,9 +254,25 @@ radarr:
 
   config:
     urlBase: ""
+    tags: []
     rootFolders: []
     # - path: /movies
-    tags: []
+    qualityDefinitions: []
+    customFormats: []
+    qualityProfiles: []
+    delayProfiles: []
+    downloadClients: []
+    notifications: []
+    importLists: []
+    naming: {}
+    # renameMovies: true
+    # replaceIllegalCharacters: true
+    # colonReplacementFormat: "delete"
+    # standardMovieFormat: "{Movie CleanTitle} {(Release Year)} {imdb-{ImdbId}} {edition-{Edition Tags}} {[Custom Formats]}{[Quality Full]}{-Release Group}"
+    # movieFolderFormat: "{Movie CleanTitle} {(Release Year)}"
+    mediaManagement: {}
+    host: {}
+    ui: {}
 
 ## ─── Prowlarr ─────────────────────────────────────────────────────────────────
 prowlarr:
@@ -175,6 +301,18 @@ prowlarr:
   config:
     urlBase: ""
     tags: []
+    ## Download clients managed by Prowlarr
+    downloadClients: []
+    ## Notifications
+    notifications: []
+    ## Applications (Prowlarr→Sonarr/Radarr connections).
+    ## Auto-generated by Phase 5 via autoSonarr/autoRadarr flags.
+    ## Set manually here if autoSonarr/autoRadarr are not used.
+    applications: []
+    ## General / host settings (singleton PUT). Leave empty to skip.
+    host: {}
+    ## UI settings (singleton PUT). Leave empty to skip.
+    ui: {}
 
 ## ─── Config Sync ──────────────────────────────────────────────────────────────
 ## Helm hook Job that syncs declarative config to all services after install/upgrade
@@ -188,6 +326,13 @@ configSync:
   ## Optional: cron schedule for periodic drift reconciliation (e.g. "0 */6 * * *")
   ## Leave empty to disable the CronJob.
   schedule: ""
+  ## Additional environment sources (Secrets/ConfigMaps) to inject into the sync Job.
+  ## Use this to provide secrets referenced via ${ENV_VAR} in download client / notification configs.
+  ## Example:
+  ## extraEnvFrom:
+  ##   - secretRef:
+  ##       name: arrmada-download-client-secrets
+  extraEnvFrom: []
 
 ## ─── Recyclarr ────────────────────────────────────────────────────────────────
 ## TRaSH guide sync via Recyclarr CronJob

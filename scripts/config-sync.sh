@@ -15,7 +15,8 @@
 set -e
 
 # Install runtime dependencies (alpine base image)
-apk add --no-cache curl jq > /dev/null 2>&1
+# gettext provides envsubst for ${ENV_VAR} substitution in sensitive fields
+apk add --no-cache curl jq gettext > /dev/null 2>&1
 
 # Source shared libraries (mounted flat from ConfigMap at /scripts/)
 . /scripts/helpers.sh
@@ -24,6 +25,41 @@ apk add --no-cache curl jq > /dev/null 2>&1
 DESIRED_DIR="${DESIRED_DIR:-/desired-state}"
 TIMEOUT="${CONFIG_SYNC_TIMEOUT:-300}"
 export DELETE_UNMANAGED="${DELETE_UNMANAGED:-false}"
+
+# ─── read_desired ──────────────────────────────────────────────────────────────
+# Read a desired-state file, resolve ${ENV_VAR} patterns, and return the JSON.
+# If the file doesn't exist or is empty/null/[], echoes "[]".
+read_desired() {
+  local path="$1"
+  if [ ! -f "${path}" ]; then
+    echo "[]"
+    return 0
+  fi
+  local content
+  content=$(cat "${path}")
+  if [ -z "${content}" ] || [ "${content}" = "null" ]; then
+    echo "[]"
+    return 0
+  fi
+  resolve_env_vars "${content}"
+}
+
+# ─── read_desired_obj ──────────────────────────────────────────────────────────
+# Like read_desired but for singleton objects; returns "{}" if not found.
+read_desired_obj() {
+  local path="$1"
+  if [ ! -f "${path}" ]; then
+    echo "{}"
+    return 0
+  fi
+  local content
+  content=$(cat "${path}")
+  if [ -z "${content}" ] || [ "${content}" = "null" ] || [ "${content}" = "{}" ]; then
+    echo "{}"
+    return 0
+  fi
+  resolve_env_vars "${content}"
+}
 
 # ─── sync_service ─────────────────────────────────────────────────────────────
 # Syncs all configured resources for a single service.
@@ -59,33 +95,143 @@ sync_service() {
     || die "${service} API did not become ready within ${TIMEOUT}s"
 
   # ── Sync resources in dependency order ──────────────────────────────────────
+  local desired d="${DESIRED_DIR}/${service}"
 
-  # 1. Tags
-  local desired_file="${DESIRED_DIR}/${service}-tags.json"
-  if [ -f "${desired_file}" ]; then
-    local desired_tags
-    desired_tags=$(cat "${desired_file}")
-    if [ "${desired_tags}" != "[]" ] && [ -n "${desired_tags}" ]; then
-      sync_resources "${url}" "${api_version}" "${api_key}" "tag" \
-        "${desired_tags}" "label"
-    else
-      info "No tags configured for ${service}, skipping"
+  # 1. Tags (others may reference tag IDs)
+  desired=$(read_desired "${d}-tags.json")
+  if [ "${desired}" != "[]" ]; then
+    sync_resources "${url}" "${api_version}" "${api_key}" "tag" \
+      "${desired}" "label"
+  fi
+
+  # 2. Root folders (Sonarr / Radarr only — Prowlarr has no rootfolder API)
+  if [ "${service}" != "prowlarr" ]; then
+    desired=$(read_desired "${d}-rootfolders.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "rootfolder" \
+        "${desired}" "path"
     fi
   fi
 
-  # 2. Root Folders (Sonarr / Radarr only — Prowlarr has no rootfolder API)
+  # ── Sonarr / Radarr-specific resources ──────────────────────────────────────
   if [ "${service}" != "prowlarr" ]; then
-    desired_file="${DESIRED_DIR}/${service}-rootfolders.json"
-    if [ -f "${desired_file}" ]; then
-      local desired_rf
-      desired_rf=$(cat "${desired_file}")
-      if [ "${desired_rf}" != "[]" ] && [ -n "${desired_rf}" ]; then
-        sync_resources "${url}" "${api_version}" "${api_key}" "rootfolder" \
-          "${desired_rf}" "path"
-      else
-        info "No root folders configured for ${service}, skipping"
-      fi
+
+    # 3. Quality definitions (update-only, matched by title)
+    desired=$(read_desired "${d}-qualitydefinitions.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_quality_definitions "${url}" "${api_version}" "${api_key}" "${desired}"
     fi
+
+    # 4. Custom formats (must exist before quality profiles reference them)
+    desired=$(read_desired "${d}-customformats.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "customformat" \
+        "${desired}" "name"
+    fi
+
+    # 5. Quality profiles (reference custom formats by name)
+    desired=$(read_desired "${d}-qualityprofiles.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "qualityprofile" \
+        "${desired}" "name"
+    fi
+
+    # 6. Delay profiles (matched by id; default profile is id=1)
+    desired=$(read_desired "${d}-delayprofiles.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "delayprofile" \
+        "${desired}" "id"
+    fi
+
+    # 7. Download clients (may contain ${ENV_VAR} for passwords/API keys)
+    desired=$(read_desired "${d}-downloadclients.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "downloadclient" \
+        "${desired}" "name"
+    fi
+
+    # 8. Notifications
+    desired=$(read_desired "${d}-notifications.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "notification" \
+        "${desired}" "name"
+    fi
+
+    # 9. Import lists
+    desired=$(read_desired "${d}-importlists.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "importlist" \
+        "${desired}" "name"
+    fi
+
+    # 10. Naming (singleton)
+    desired=$(read_desired_obj "${d}-naming.json")
+    if [ "${desired}" != "{}" ]; then
+      sync_singleton "${url}" "${api_version}" "${api_key}" "config/naming" \
+        "${desired}"
+    fi
+
+    # 11. Media management (singleton)
+    desired=$(read_desired_obj "${d}-mediamanagement.json")
+    if [ "${desired}" != "{}" ]; then
+      sync_singleton "${url}" "${api_version}" "${api_key}" "config/mediamanagement" \
+        "${desired}"
+    fi
+
+    # 12. Host settings (singleton)
+    desired=$(read_desired_obj "${d}-host.json")
+    if [ "${desired}" != "{}" ]; then
+      sync_singleton "${url}" "${api_version}" "${api_key}" "config/host" \
+        "${desired}"
+    fi
+
+    # 13. UI settings (singleton)
+    desired=$(read_desired_obj "${d}-ui.json")
+    if [ "${desired}" != "{}" ]; then
+      sync_singleton "${url}" "${api_version}" "${api_key}" "config/ui" \
+        "${desired}"
+    fi
+
+  fi # end Sonarr/Radarr-specific
+
+  # ── Prowlarr-specific resources ─────────────────────────────────────────────
+  if [ "${service}" = "prowlarr" ]; then
+
+    # Download clients
+    desired=$(read_desired "${d}-downloadclients.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "downloadclient" \
+        "${desired}" "name"
+    fi
+
+    # Notifications
+    desired=$(read_desired "${d}-notifications.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "notification" \
+        "${desired}" "name"
+    fi
+
+    # Applications (Prowlarr→Sonarr/Radarr connections)
+    desired=$(read_desired "${d}-applications.json")
+    if [ "${desired}" != "[]" ]; then
+      sync_resources "${url}" "${api_version}" "${api_key}" "applications" \
+        "${desired}" "name"
+    fi
+
+    # General settings (singleton)
+    desired=$(read_desired_obj "${d}-host.json")
+    if [ "${desired}" != "{}" ]; then
+      sync_singleton "${url}" "${api_version}" "${api_key}" "config/host" \
+        "${desired}"
+    fi
+
+    # UI settings (singleton)
+    desired=$(read_desired_obj "${d}-ui.json")
+    if [ "${desired}" != "{}" ]; then
+      sync_singleton "${url}" "${api_version}" "${api_key}" "config/ui" \
+        "${desired}"
+    fi
+
   fi
 
   info "Done syncing ${service}"
