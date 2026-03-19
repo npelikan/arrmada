@@ -33,6 +33,13 @@ global:
       mainDatabase: prowlarr-main
       logDatabase: prowlarr-log
 
+  media:
+    enabled: true
+    storageClassName: local-path
+    size: 5Gi
+    accessMode: ReadWriteOnce
+    mountPath: /data
+
 sonarr:
   enabled: true
   persistence:
@@ -40,14 +47,9 @@ sonarr:
       enabled: true
       storageClassName: local-path
       size: 1Gi
-    media:
-      # Simulates a NAS share mounted at /downloads; init container creates subdirs.
-      - name: downloads
-        mountPath: /downloads
-        emptyDir: true
   config:
     rootFolders:
-      - path: /downloads/tv
+      - path: /data/tv
     tags:
       - label: test-tag
 
@@ -58,13 +60,9 @@ radarr:
       enabled: true
       storageClassName: local-path
       size: 1Gi
-    media:
-      - name: downloads
-        mountPath: /downloads
-        emptyDir: true
   config:
     rootFolders:
-      - path: /downloads/movies
+      - path: /data/movies
 
 prowlarr:
   enabled: true
@@ -77,6 +75,14 @@ prowlarr:
     applications:
       autoSonarr: true
       autoRadarr: true
+
+rtorrent:
+  enabled: true
+  persistence:
+    config:
+      enabled: true
+      storageClassName: local-path
+      size: 1Gi
 
 configSync:
   enabled: true

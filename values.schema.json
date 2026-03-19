@@ -39,6 +39,18 @@
             "radarr":   { "$ref": "#/$defs/postgresqlService" },
             "prowlarr": { "$ref": "#/$defs/postgresqlService" }
           }
+        },
+        "media": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled":          { "type": "boolean" },
+            "existingClaim":    { "type": "string" },
+            "storageClassName": { "type": "string" },
+            "size":             { "type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?(e[0-9]+)?[EPTGMK]i?|[0-9]+)$" },
+            "accessMode":       { "$ref": "#/$defs/accessMode" },
+            "mountPath":        { "type": "string", "minLength": 1 }
+          }
         }
       }
     },
@@ -54,6 +66,7 @@
     "sonarr":   { "$ref": "#/$defs/mediaService" },
     "radarr":   { "$ref": "#/$defs/mediaService" },
     "prowlarr": { "$ref": "#/$defs/prowlarrService" },
+    "rtorrent": { "$ref": "#/$defs/rtorrentService" },
     "configSync": {
       "type": "object",
       "additionalProperties": false,
@@ -249,6 +262,52 @@
           "items": { "$ref": "#/$defs/ingressEntry" }
         },
         "config":         { "$ref": "#/$defs/mediaConfig" },
+        "nodeSelector":   { "type": "object" },
+        "tolerations": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "affinity":       { "type": "object" },
+        "podAnnotations": { "type": "object" },
+        "extraEnv": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+    "rtorrentService": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":        { "type": "boolean" },
+        "image":          { "$ref": "#/$defs/image" },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": { "$ref": "#/$defs/serviceType" },
+            "port": { "$ref": "#/$defs/port" }
+          }
+        },
+        "resources":      { "type": "object" },
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "config": { "$ref": "#/$defs/persistence" }
+          }
+        },
+        "ingress": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ingressEntry" }
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "downloadDir": { "type": "string", "minLength": 1 }
+          }
+        },
         "nodeSelector":   { "type": "object" },
         "tolerations": {
           "type": "array",

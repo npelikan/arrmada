@@ -46,6 +46,18 @@ global:
       mainDatabase: prowlarr-main
       logDatabase: prowlarr-log
 
+  ## Shared media PVC mounted by Sonarr, Radarr, and rtorrent at the same path.
+  ## All three services must use the same mountPath for cross-service file access.
+  media:
+    enabled: false
+    ## Use a pre-existing PVC instead of creating one. Leave empty to create.
+    existingClaim: ""
+    storageClassName: ""
+    size: 100Gi
+    accessMode: ReadWriteOnce
+    ## Mount path used by all services. Must be identical across sonarr, radarr, rtorrent.
+    mountPath: /data
+
 ## Service account configuration
 serviceAccount:
   create: true
@@ -353,6 +365,43 @@ prowlarr:
     host: {}
     ## UI settings (singleton PUT). Leave empty to skip.
     ui: {}
+
+## ─── rtorrent ─────────────────────────────────────────────────────────────────
+## rtorrent with Flood web UI (ghcr.io/hotio/rtorrent).
+## The Flood UI and XML-RPC endpoint share port 8080 via nginx.
+## Sonarr and Radarr connect to rtorrent via http://{release}-rtorrent:8080/RPC2.
+##
+## WARNING: If you also define a download client named "rTorrent" in
+## sonarr.config.downloadClients or radarr.config.downloadClients, it will
+## appear as a duplicate alongside the auto-generated one. Rename the manual
+## entry or remove it to avoid duplicates.
+rtorrent:
+  enabled: false
+
+  image:
+    repository: ghcr.io/hotio/rtorrent
+    tag: release
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  resources: {}
+
+  persistence:
+    config:
+      enabled: true
+      storageClassName: ""
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+  ingress: []
+
+  config:
+    ## Download directory for completed torrents. Must be under global.media.mountPath
+    ## when global.media.enabled is true.
+    downloadDir: /data/downloads
 
 ## ─── Config Sync ──────────────────────────────────────────────────────────────
 ## Helm hook Job that syncs declarative config to all services after install/upgrade

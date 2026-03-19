@@ -54,7 +54,7 @@ spec:
               mountPath: /config
             - name: init-scripts
               mountPath: /scripts
-        {{- if and .Values.sonarr.config.rootFolders .Values.sonarr.persistence.media }}
+        {{- if and .Values.sonarr.config.rootFolders (or .Values.sonarr.persistence.media .Values.global.media.enabled) }}
         - name: create-root-folders
           image: alpine:3.19
           command:
@@ -75,6 +75,10 @@ spec:
             {{- range .Values.sonarr.persistence.media }}
             - name: {{ .name }}
               mountPath: {{ .mountPath }}
+            {{- end }}
+            {{- if .Values.global.media.enabled }}
+            - name: media
+              mountPath: {{ .Values.global.media.mountPath }}
             {{- end }}
         {{- end }}
       containers:
@@ -120,6 +124,10 @@ spec:
             - name: {{ .name }}
               mountPath: {{ .mountPath }}
             {{- end }}
+            {{- if .Values.global.media.enabled }}
+            - name: media
+              mountPath: {{ .Values.global.media.mountPath }}
+            {{- end }}
       volumes:
         - name: config
           {{- if .Values.sonarr.persistence.config.enabled }}
@@ -142,6 +150,11 @@ spec:
           {{- else }}
           {{- fail (printf "sonarr persistence.media entry '%s' must set either emptyDir or claimName" .name) }}
           {{- end }}
+        {{- end }}
+        {{- if .Values.global.media.enabled }}
+        - name: media
+          persistentVolumeClaim:
+            claimName: {{ .Values.global.media.existingClaim | default (printf "%s-media" (include "arrmada.fullname" .)) }}
         {{- end }}
       {{- with .Values.sonarr.nodeSelector }}
       nodeSelector:

@@ -1,0 +1,17 @@
+{{- if and .Values.rtorrent.enabled .Values.rtorrent.persistence.config.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "rtorrent") }}-config
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "rtorrent") | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.rtorrent.persistence.config.accessMode }}
+  {{- if .Values.rtorrent.persistence.config.storageClassName }}
+  storageClassName: {{ .Values.rtorrent.persistence.config.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.rtorrent.persistence.config.size | quote }}
+{{- end }}

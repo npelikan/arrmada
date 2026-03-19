@@ -21,7 +21,7 @@ data:
   sonarr-delayprofiles.json: |
     {{ .Values.sonarr.config.delayProfiles | default list | toJson }}
   sonarr-downloadclients.json: |
-    {{ .Values.sonarr.config.downloadClients | default list | toJson }}
+    {{ $sonarrClients := .Values.sonarr.config.downloadClients | default list }}{{ if and .Values.rtorrent.enabled .Values.sonarr.enabled }}{{ $sonarrClients = append $sonarrClients (include "arrmada.rtorrentDownloadClientSonarr" . | fromJson) }}{{ end }}{{ $sonarrClients | toJson }}
   sonarr-notifications.json: |
     {{ .Values.sonarr.config.notifications | default list | toJson }}
   sonarr-importlists.json: |
@@ -51,7 +51,7 @@ data:
   radarr-delayprofiles.json: |
     {{ .Values.radarr.config.delayProfiles | default list | toJson }}
   radarr-downloadclients.json: |
-    {{ .Values.radarr.config.downloadClients | default list | toJson }}
+    {{ $radarrClients := .Values.radarr.config.downloadClients | default list }}{{ if and .Values.rtorrent.enabled .Values.radarr.enabled }}{{ $radarrClients = append $radarrClients (include "arrmada.rtorrentDownloadClientRadarr" . | fromJson) }}{{ end }}{{ $radarrClients | toJson }}
   radarr-notifications.json: |
     {{ .Values.radarr.config.notifications | default list | toJson }}
   radarr-importlists.json: |

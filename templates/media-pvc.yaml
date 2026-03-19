@@ -1,0 +1,17 @@
+{{- if and .Values.global.media.enabled (not .Values.global.media.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "arrmada.fullname" . }}-media
+  labels:
+    {{- include "arrmada.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.global.media.accessMode }}
+  {{- if .Values.global.media.storageClassName }}
+  storageClassName: {{ .Values.global.media.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.global.media.size | quote }}
+{{- end }}

@@ -127,6 +127,63 @@ Internal service URL for Prowlarr.
 {{- end }}
 
 {{/*
+Internal service URL for rtorrent (Flood UI / XML-RPC).
+*/}}
+{{- define "arrmada.rtorrentUrl" -}}
+{{- printf "http://%s-rtorrent:%d" (include "arrmada.fullname" .) (.Values.rtorrent.service.port | int) }}
+{{- end }}
+
+{{/*
+Auto-generate the rTorrent download client entry for Sonarr.
+Returns a JSON object (not array) representing one download client.
+*/}}
+{{- define "arrmada.rtorrentDownloadClientSonarr" -}}
+{{- dict
+    "name" "rTorrent"
+    "enable" true
+    "implementation" "rTorrent"
+    "configContract" "rTorrentSettings"
+    "priority" 1
+    "fields" (list
+      (dict "name" "host" "value" (printf "%s-rtorrent" (include "arrmada.fullname" .)))
+      (dict "name" "port" "value" (.Values.rtorrent.service.port | int))
+      (dict "name" "urlBase" "value" "/RPC2")
+      (dict "name" "username" "value" "")
+      (dict "name" "password" "value" "")
+      (dict "name" "tvCategory" "value" "tv-sonarr")
+      (dict "name" "recentTvPriority" "value" 0)
+      (dict "name" "olderTvPriority" "value" 0)
+      (dict "name" "addStopped" "value" false)
+    )
+| toJson -}}
+{{- end }}
+
+{{/*
+Auto-generate the rTorrent download client entry for Radarr.
+Returns a JSON object (not array) representing one download client.
+*/}}
+{{- define "arrmada.rtorrentDownloadClientRadarr" -}}
+{{- dict
+    "name" "rTorrent"
+    "enable" true
+    "implementation" "rTorrent"
+    "configContract" "rTorrentSettings"
+    "priority" 1
+    "fields" (list
+      (dict "name" "host" "value" (printf "%s-rtorrent" (include "arrmada.fullname" .)))
+      (dict "name" "port" "value" (.Values.rtorrent.service.port | int))
+      (dict "name" "urlBase" "value" "/RPC2")
+      (dict "name" "username" "value" "")
+      (dict "name" "password" "value" "")
+      (dict "name" "movieCategory" "value" "radarr")
+      (dict "name" "recentMoviePriority" "value" 0)
+      (dict "name" "olderMoviePriority" "value" 0)
+      (dict "name" "addStopped" "value" false)
+    )
+| toJson -}}
+{{- end }}
+
+{{/*
 Init config script for *arr services.
 Writes config.xml to /config based on environment variables injected from the Secret.
 Call with dict "root" . "port" 8989 "pgEnabled" true

@@ -1,0 +1,113 @@
+{{- if .Values.rtorrent.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "rtorrent") }}
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "rtorrent") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "arrmada.componentSelectorLabels" (dict "root" . "component" "rtorrent") | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "arrmada.componentLabels" (dict "root" . "component" "rtorrent") | nindent 8 }}
+      {{- with .Values.rtorrent.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
+      {{- if .Values.global.media.enabled }}
+      initContainers:
+        - name: create-download-dir
+          image: alpine:3.19
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              mkdir -p {{ .Values.rtorrent.config.downloadDir | quote }}
+              chown "${PUID}:${PGID}" {{ .Values.rtorrent.config.downloadDir | quote }} 2>/dev/null || true
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+          volumeMounts:
+            - name: media
+              mountPath: {{ .Values.global.media.mountPath }}
+      {{- end }}
+      containers:
+        - name: rtorrent
+          image: "{{ .Values.rtorrent.image.repository }}:{{ .Values.rtorrent.image.tag }}"
+          imagePullPolicy: {{ .Values.rtorrent.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+            - name: UMASK
+              value: {{ .Values.global.env.UMASK | quote }}
+            {{- with .Values.rtorrent.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          {{- with .Values.rtorrent.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            {{- if .Values.global.media.enabled }}
+            - name: media
+              mountPath: {{ .Values.global.media.mountPath }}
+            {{- end }}
+      volumes:
+        - name: config
+          {{- if .Values.rtorrent.persistence.config.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "arrmada.componentName" (dict "root" . "component" "rtorrent") }}-config
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- if .Values.global.media.enabled }}
+        - name: media
+          persistentVolumeClaim:
+            claimName: {{ .Values.global.media.existingClaim | default (printf "%s-media" (include "arrmada.fullname" .)) }}
+        {{- end }}
+      {{- with .Values.rtorrent.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.rtorrent.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.rtorrent.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
