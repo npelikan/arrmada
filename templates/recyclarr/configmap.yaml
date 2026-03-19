@@ -8,5 +8,5 @@ metadata:
     app.kubernetes.io/component: recyclarr
 data:
   recyclarr.yml: |
-{{- include "arrmada.recyclarrConfig" . | nindent 4 }}
+{{- include "arrmada.recyclarrConfig" . | trim | nindent 4 }}
 {{- end }}

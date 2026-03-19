@@ -403,7 +403,7 @@ sonarr:
     {{- end }}
 {{- end }}
 {{- if $root.Values.recyclarr.config.radarr }}
-{{- $radarr := $root.Values.recyclarr.config.radarr -}}
+{{- $radarr := $root.Values.recyclarr.config.radarr }}
 radarr:
   main:
     base_url: {{ include "arrmada.radarrUrl" $root }}

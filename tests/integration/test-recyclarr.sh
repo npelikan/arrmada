@@ -104,6 +104,15 @@ wait_for_job() {
 
 echo "=== Phase 1: Verify Recyclarr resources absent (disabled) ==="
 
+echo "Resetting chart to disabled-recyclarr baseline..."
+helm upgrade "${RELEASE}" "${CHART_DIR}" \
+  --kubeconfig "${KUBECONFIG}" \
+  --namespace "${NAMESPACE}" \
+  -f "${TESTS_DIR}/values-test.yaml" \
+  --set recyclarr.enabled=false \
+  --wait \
+  --timeout 120s
+
 check_not_exists "CronJob absent when Recyclarr disabled" \
   cronjob "${RELEASE}-recyclarr"
 check_not_exists "ConfigMap absent when Recyclarr disabled" \
@@ -144,11 +153,10 @@ check "ConfigMap created when Recyclarr enabled" \
   kubectl get configmap "${RELEASE}-recyclarr-config" \
     --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}"
 
-cm_data=$(kubectl get configmap "${RELEASE}-recyclarr-config" \
-  --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
-  -o jsonpath='{.data.recyclarr\.yml}')
 check "ConfigMap contains recyclarr.yml data key" \
-  test -n "${cm_data}"
+  bash -c "kubectl get configmap '${RELEASE}-recyclarr-config' \
+    --kubeconfig '${KUBECONFIG}' -n '${NAMESPACE}' \
+    -o jsonpath='{.data}' | grep -q 'recyclarr\.yml'"
 
 # ─── Phase 3: Basic job completion (no sync targets) ──────────────────────────
 
@@ -268,6 +276,9 @@ echo ""
 echo "=== Phase 5: PVC lifecycle ==="
 
 echo "Upgrading chart with Recyclarr persistence enabled..."
+# Do not pass --wait: with WaitForFirstConsumer storage classes (e.g. local-path
+# in k3d/Rancher Desktop), the PVC stays Pending until a pod binds it. Helm's
+# --wait would time out waiting for the PVC to become Bound.
 helm upgrade "${RELEASE}" "${CHART_DIR}" \
   --kubeconfig "${KUBECONFIG}" \
   --namespace "${NAMESPACE}" \
@@ -276,8 +287,8 @@ helm upgrade "${RELEASE}" "${CHART_DIR}" \
   --set "recyclarr.schedule=0 0 31 2 *" \
   --set recyclarr.persistence.enabled=true \
   --set recyclarr.persistence.size=1Gi \
-  --wait \
   --timeout 120s
+sleep 5  # give the API server a moment to create the PVC object
 
 check "PVC created when recyclarr persistence enabled" \
   kubectl get pvc "${RELEASE}-recyclarr-cache" \
