@@ -73,6 +73,15 @@
         "deleteUnmanaged": { "type": "boolean" },
         "timeout":         { "type": "integer", "minimum": 30, "maximum": 3600 },
         "schedule":        { "type": "string" },
+        "apiVersions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sonarr":   { "type": "string" },
+            "radarr":   { "type": "string" },
+            "prowlarr": { "type": "string" }
+          }
+        },
         "extraEnvFrom":    { "type": "array" }
       }
     },

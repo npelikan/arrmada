@@ -14,10 +14,6 @@
 
 set -e
 
-# Install runtime dependencies (alpine base image)
-# gettext provides envsubst for ${ENV_VAR} substitution in sensitive fields
-apk add --no-cache curl jq gettext > /dev/null 2>&1
-
 # Source shared libraries (mounted flat from ConfigMap at /scripts/)
 . /scripts/helpers.sh
 . /scripts/sync-resource.sh

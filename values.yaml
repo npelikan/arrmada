@@ -346,13 +346,26 @@ prowlarr:
 configSync:
   enabled: true
   image:
-    repository: alpine
-    tag: "3.19"
+    ## Use an image with curl and jq pre-bundled. The default ships both tools
+    ## so no runtime package installation (apk add) is required.
+    ## To also support ${ENV_VAR} substitution in sensitive fields, ensure the
+    ## image includes envsubst (gettext); otherwise substitution is skipped with
+    ## a warning.
+    repository: ghcr.io/nicholaswilde/curl-jq
+    tag: "alpine-3.19.0"
   deleteUnmanaged: false
   timeout: 300
   ## Optional: cron schedule for periodic drift reconciliation (e.g. "0 */6 * * *")
   ## Leave empty to disable the CronJob.
   schedule: ""
+  ## API versions passed to the config-sync script. These match the defaults
+  ## hard-coded in config-sync.sh and only need overriding if you run a
+  ## non-standard *arr build with a different API version.
+  apiVersions:
+    sonarr: "v3"
+    radarr: "v3"
+    prowlarr: "v1"
+
   ## Additional environment sources (Secrets/ConfigMaps) to inject into the sync Job.
   ## Use this to provide secrets referenced via ${ENV_VAR} in download client / notification configs.
   ## Example:

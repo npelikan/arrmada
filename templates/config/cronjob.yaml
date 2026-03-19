@@ -37,7 +37,7 @@ spec:
                 - name: SONARR_URL
                   value: {{ include "arrmada.sonarrUrl" . | quote }}
                 - name: SONARR_API_VERSION
-                  value: "v3"
+                  value: {{ .Values.configSync.apiVersions.sonarr | quote }}
                 - name: SONARR_API_KEY
                   valueFrom:
                     secretKeyRef:
@@ -48,7 +48,7 @@ spec:
                 - name: RADARR_URL
                   value: {{ include "arrmada.radarrUrl" . | quote }}
                 - name: RADARR_API_VERSION
-                  value: "v3"
+                  value: {{ .Values.configSync.apiVersions.radarr | quote }}
                 - name: RADARR_API_KEY
                   valueFrom:
                     secretKeyRef:
@@ -59,7 +59,7 @@ spec:
                 - name: PROWLARR_URL
                   value: {{ include "arrmada.prowlarrUrl" . | quote }}
                 - name: PROWLARR_API_VERSION
-                  value: "v1"
+                  value: {{ .Values.configSync.apiVersions.prowlarr | quote }}
                 - name: PROWLARR_API_KEY
                   valueFrom:
                     secretKeyRef:
