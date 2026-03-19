@@ -300,6 +300,9 @@ recyclarr:
           type: series
         quality_profiles:
           - name: HD-1080p
+            # include syncs the profile definition (qualities, cutoffs) from TRaSH Guides
+            include:
+              - trash_id: 76e060895c5b8a765c310933da0a5357  # HD-1080p (Sonarr)
         custom_formats:
           - trash_ids:
               - 3a3ff47579026a9e4b651ef28c46b981   # DoVi
@@ -312,6 +315,9 @@ recyclarr:
           type: movie
         quality_profiles:
           - name: HD-1080p
+            # include syncs the profile definition (qualities, cutoffs) from TRaSH Guides
+            include:
+              - trash_id: a5db2b67-4a1e-4286-ab16-c39f8a3a8f4b  # HD-1080p (Radarr)
 ```
 
 API keys are injected via `!env_var SONARR_API_KEY` / `!env_var RADARR_API_KEY`

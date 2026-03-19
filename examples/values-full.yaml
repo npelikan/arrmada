@@ -99,7 +99,7 @@ sonarr:
       renameEpisodes: true
       replaceIllegalCharacters: true
       colonReplacementFormat: "delete"
-      standardEpisodeFormat: "{Series TitleYear} - S{season:00}E{episode:00} - {Episode CleanTitle} [{Custom Formats }{Quality Full}]{-Release Group}"
+      standardEpisodeFormat: "{Series TitleYear} - S{season:00}E{episode:00} - {Episode CleanTitle} [{Custom Formats}{Quality Full}]{-Release Group}"
       seriesFolderFormat: "{Series TitleYear}"
       seasonFolderFormat: "Season {season:00}"
 
@@ -254,6 +254,9 @@ recyclarr:
         type: series
       quality_profiles:
         - name: HD-1080p
+          ## include syncs the quality profile definition (qualities, cutoffs) from TRaSH Guides
+          include:
+            - trash_id: 76e060895c5b8a765c310933da0a5357  # HD-1080p (Sonarr)
       custom_formats:
         - trash_ids:
             - 3a3ff47579026a9e4b651ef28c46b981  # DoVi
@@ -267,6 +270,9 @@ recyclarr:
         type: movie
       quality_profiles:
         - name: HD-1080p
+          ## include syncs the quality profile definition (qualities, cutoffs) from TRaSH Guides
+          include:
+            - trash_id: a5db2b67-4a1e-4286-ab16-c39f8a3a8f4b  # HD-1080p (Radarr)
       custom_formats:
         - trash_ids:
             - e23edd2482476e595fb990b12e7c609c  # DV HDR10+
