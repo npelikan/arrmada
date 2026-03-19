@@ -247,6 +247,12 @@ quality_profiles, custom_formats, delete_old_custom_formats).
 Each of recyclarr.config.sonarr and recyclarr.config.radarr is a single
 instance object (not a list). The instance key in the generated YAML is
 always "main" since each service has exactly one internal endpoint.
+
+Constraint: the hardcoded "main" instance key couples this template to
+Recyclarr's single-instance-per-service model. Supporting multiple Sonarr
+or Radarr instances would require a schema change (list of objects with
+name keys) and a new template iteration approach. Do not extend this
+template for multi-instance use without updating the schema and tests.
 */}}
 {{- define "arrmada.recyclarrConfig" -}}
 {{- $root := . -}}
