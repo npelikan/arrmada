@@ -41,8 +41,9 @@ sonarr:
       storageClassName: local-path
       size: 1Gi
     media:
-      - name: downloads-tv
-        mountPath: /downloads/tv
+      # Simulates a NAS share mounted at /downloads; init container creates subdirs.
+      - name: downloads
+        mountPath: /downloads
         emptyDir: true
   config:
     rootFolders:
@@ -58,8 +59,8 @@ radarr:
       storageClassName: local-path
       size: 1Gi
     media:
-      - name: downloads-movies
-        mountPath: /downloads/movies
+      - name: downloads
+        mountPath: /downloads
         emptyDir: true
   config:
     rootFolders:

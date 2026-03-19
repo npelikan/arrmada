@@ -54,6 +54,29 @@ spec:
               mountPath: /config
             - name: init-scripts
               mountPath: /scripts
+        {{- if and .Values.radarr.config.rootFolders .Values.radarr.persistence.media }}
+        - name: create-root-folders
+          image: alpine:3.19
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              {{- range .Values.radarr.config.rootFolders }}
+              mkdir -p {{ .path | quote }}
+              chown "${PUID}:${PGID}" {{ .path | quote }} 2>/dev/null || true
+              {{- end }}
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+          volumeMounts:
+            {{- range .Values.radarr.persistence.media }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
+            {{- end }}
+        {{- end }}
       containers:
         - name: radarr
           image: "{{ .Values.radarr.image.repository }}:{{ .Values.radarr.image.tag }}"

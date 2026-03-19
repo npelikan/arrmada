@@ -22,7 +22,10 @@ spec:
         - name: config-sync
           image: "{{ .Values.configSync.image.repository }}:{{ .Values.configSync.image.tag }}"
           imagePullPolicy: IfNotPresent
-          command: ["/bin/sh", "/scripts/config-sync.sh"]
+          command:
+            - /bin/sh
+            - -c
+            - apk add --no-cache --quiet curl jq && exec /scripts/config-sync.sh
           env:
             ## ── Global ───────────────────────────────────────────────────────
             - name: CONFIG_SYNC_TIMEOUT

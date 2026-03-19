@@ -359,12 +359,11 @@ prowlarr:
 configSync:
   enabled: true
   image:
-    ## Use an image with curl and jq pre-bundled. The default ships both tools
-    ## so no runtime package installation (apk add) is required.
-    ## ${ENV_VAR} substitution in sensitive fields is performed by jq (built-in),
-    ## so no additional tooling (envsubst/gettext) is required.
-    repository: badouralix/curl-jq
-    tag: "alpine-3.19"
+    ## Alpine is used as the base; the job installs curl and jq via apk before
+    ## running the sync script. Using the official pinned alpine image avoids
+    ## dependence on unmaintained third-party images.
+    repository: alpine
+    tag: "3.19"
   deleteUnmanaged: false
   timeout: 300
   ## Optional: cron schedule for periodic drift reconciliation (e.g. "0 */6 * * *")
