@@ -1,0 +1,30 @@
+{{- if .Values.configSync.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "arrmada.fullname" . }}-desired-state
+  labels:
+    {{- include "arrmada.labels" . | nindent 4 }}
+data:
+  {{- /* ── Sonarr ──────────────────────────────────────────────────────── */}}
+  {{- if .Values.sonarr.enabled }}
+  sonarr-tags.json: |
+    {{ .Values.sonarr.config.tags | default list | toJson }}
+  sonarr-rootfolders.json: |
+    {{ .Values.sonarr.config.rootFolders | default list | toJson }}
+  {{- end }}
+
+  {{- /* ── Radarr ──────────────────────────────────────────────────────── */}}
+  {{- if .Values.radarr.enabled }}
+  radarr-tags.json: |
+    {{ .Values.radarr.config.tags | default list | toJson }}
+  radarr-rootfolders.json: |
+    {{ .Values.radarr.config.rootFolders | default list | toJson }}
+  {{- end }}
+
+  {{- /* ── Prowlarr ────────────────────────────────────────────────────── */}}
+  {{- if .Values.prowlarr.enabled }}
+  prowlarr-tags.json: |
+    {{ .Values.prowlarr.config.tags | default list | toJson }}
+  {{- end }}
+{{- end }}

@@ -107,9 +107,14 @@ sonarr:
   #         - sonarr.example.com
 
   ## Declarative configuration (synced via API on install/upgrade)
-  ## See Phase 4 for full config schema
   config:
     urlBase: ""
+    ## Root folders (media library paths)
+    rootFolders: []
+    # - path: /tv
+    ## Tags
+    tags: []
+    # - label: 4k
 
 ## ─── Radarr ───────────────────────────────────────────────────────────────────
 radarr:
@@ -139,6 +144,9 @@ radarr:
 
   config:
     urlBase: ""
+    rootFolders: []
+    # - path: /movies
+    tags: []
 
 ## ─── Prowlarr ─────────────────────────────────────────────────────────────────
 prowlarr:
@@ -166,16 +174,20 @@ prowlarr:
 
   config:
     urlBase: ""
+    tags: []
 
 ## ─── Config Sync ──────────────────────────────────────────────────────────────
 ## Helm hook Job that syncs declarative config to all services after install/upgrade
 configSync:
-  enabled: false  # Enabled in Phase 3+
+  enabled: true
   image:
     repository: alpine
     tag: "3.19"
   deleteUnmanaged: false
   timeout: 300
+  ## Optional: cron schedule for periodic drift reconciliation (e.g. "0 */6 * * *")
+  ## Leave empty to disable the CronJob.
+  schedule: ""
 
 ## ─── Recyclarr ────────────────────────────────────────────────────────────────
 ## TRaSH guide sync via Recyclarr CronJob
