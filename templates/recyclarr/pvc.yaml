@@ -3,6 +3,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: {{ include "arrmada.fullname" . }}-recyclarr-cache
+  annotations:
+    helm.sh/resource-policy: keep
   labels:
     {{- include "arrmada.labels" . | nindent 4 }}
     app.kubernetes.io/component: recyclarr

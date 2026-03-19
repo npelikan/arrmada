@@ -86,3 +86,12 @@ tests:
       - equal:
           path: spec.storageClassName
           value: local-path
+
+  - it: should have helm resource-policy keep annotation to prevent accidental deletion
+    set:
+      recyclarr.enabled: true
+      recyclarr.persistence.enabled: true
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep

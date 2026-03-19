@@ -383,7 +383,7 @@ template for multi-instance use without updating the schema and tests.
 {{- if $root.Values.recyclarr.config.sonarr -}}
 {{- $sonarr := $root.Values.recyclarr.config.sonarr -}}
 sonarr:
-  main:
+  sonarr:
     base_url: {{ include "arrmada.sonarrUrl" $root }}
     api_key: !env_var SONARR_API_KEY
     {{- if $sonarr.quality_definition }}
@@ -405,7 +405,7 @@ sonarr:
 {{- if $root.Values.recyclarr.config.radarr }}
 {{- $radarr := $root.Values.recyclarr.config.radarr }}
 radarr:
-  main:
+  radarr:
     base_url: {{ include "arrmada.radarrUrl" $root }}
     api_key: !env_var RADARR_API_KEY
     {{- if $radarr.quality_definition }}

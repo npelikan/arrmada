@@ -50,7 +50,7 @@ tests:
           path: data["recyclarr.yml"]
           value: |
 
-  - it: should render sonarr section with instance key main
+  - it: should render sonarr section with instance key sonarr
     set:
       recyclarr.enabled: true
       recyclarr.config.sonarr:
@@ -62,12 +62,12 @@ tests:
           pattern: "sonarr:"
       - matchRegex:
           path: data["recyclarr.yml"]
-          pattern: "  main:"
+          pattern: "  sonarr:"
       - matchRegex:
           path: data["recyclarr.yml"]
           pattern: "    api_key: !env_var SONARR_API_KEY"
 
-  - it: should render radarr section with instance key main
+  - it: should render radarr section with instance key radarr
     set:
       recyclarr.enabled: true
       recyclarr.config.radarr:
@@ -79,7 +79,7 @@ tests:
           pattern: "radarr:"
       - matchRegex:
           path: data["recyclarr.yml"]
-          pattern: "  main:"
+          pattern: "  radarr:"
       - matchRegex:
           path: data["recyclarr.yml"]
           pattern: "    api_key: !env_var RADARR_API_KEY"

@@ -311,8 +311,8 @@ helm upgrade "${RELEASE}" "${CHART_DIR}" \
   --wait \
   --timeout 120s
 
-# Helm does not delete PVCs on upgrade; this is expected/safe behaviour
-check "PVC is retained after persistence disabled (Helm does not delete PVCs)" \
+# The PVC has helm.sh/resource-policy: keep — Helm skips it during upgrade/delete
+check "PVC is retained after persistence disabled (resource-policy: keep)" \
   kubectl get pvc "${RELEASE}-recyclarr-cache" \
     --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}"
 
@@ -333,6 +333,14 @@ helm upgrade "${RELEASE}" "${CHART_DIR}" \
   --set recyclarr.enabled=false \
   --wait \
   --timeout 120s
+
+# Wait for Helm's delete requests to be fully processed by the GC
+kubectl wait cronjob "${RELEASE}-recyclarr" \
+  --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
+  --for=delete --timeout=60s 2>/dev/null || true
+kubectl wait configmap "${RELEASE}-recyclarr-config" \
+  --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
+  --for=delete --timeout=60s 2>/dev/null || true
 
 check_not_exists "CronJob removed when Recyclarr disabled" \
   cronjob "${RELEASE}-recyclarr"
