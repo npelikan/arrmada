@@ -67,9 +67,9 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "sonarr":   { "type": "string" },
-            "radarr":   { "type": "string" },
-            "prowlarr": { "type": "string" }
+            "sonarr":   { "type": "string", "pattern": "^v[0-9]+$" },
+            "radarr":   { "type": "string", "pattern": "^v[0-9]+$" },
+            "prowlarr": { "type": "string", "pattern": "^v[0-9]+$" }
           }
         },
         "extraEnvFrom":    { "type": "array" }
