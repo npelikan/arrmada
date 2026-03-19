@@ -1,0 +1,110 @@
+{{- if .Values.sonarr.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "sonarr") }}
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "sonarr") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "arrmada.componentSelectorLabels" (dict "root" . "component" "sonarr") | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "arrmada.componentLabels" (dict "root" . "component" "sonarr") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
+      initContainers:
+        - name: init-config
+          image: alpine:3.19
+          command: ["/bin/sh", "/scripts/init-config.sh"]
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "arrmada.secretName" . }}
+                  key: sonarr-api-key
+            - name: URL_BASE
+              value: {{ .Values.sonarr.config.urlBase | default "" | quote }}
+            - name: PG_HOST
+              value: {{ .Values.global.postgresql.host | quote }}
+            - name: PG_PORT
+              value: {{ .Values.global.postgresql.port | quote }}
+            - name: PG_USER
+              value: {{ .Values.global.postgresql.sonarr.user | quote }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "arrmada.secretName" . }}
+                  key: postgresql-password
+            - name: PG_MAIN_DB
+              value: {{ .Values.global.postgresql.sonarr.mainDatabase | quote }}
+            - name: PG_LOG_DB
+              value: {{ .Values.global.postgresql.sonarr.logDatabase | quote }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: init-scripts
+              mountPath: /scripts
+      containers:
+        - name: sonarr
+          image: "{{ .Values.sonarr.image.repository }}:{{ .Values.sonarr.image.tag }}"
+          imagePullPolicy: {{ .Values.sonarr.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8989
+              protocol: TCP
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+            - name: UMASK
+              value: {{ .Values.global.env.UMASK | quote }}
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          {{- with .Values.sonarr.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            {{- range .Values.sonarr.persistence.media }}
+            - name: {{ .name }}
+              mountPath: {{ .mountPath }}
+            {{- end }}
+      volumes:
+        - name: config
+          {{- if .Values.sonarr.persistence.config.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "arrmada.componentName" (dict "root" . "component" "sonarr") }}-config
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: init-scripts
+          configMap:
+            name: {{ include "arrmada.componentName" (dict "root" . "component" "sonarr") }}-init
+            defaultMode: 0755
+        {{- range .Values.sonarr.persistence.media }}
+        - name: {{ .name }}
+          persistentVolumeClaim:
+            claimName: {{ .claimName }}
+        {{- end }}
+{{- end }}

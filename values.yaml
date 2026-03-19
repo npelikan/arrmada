@@ -1,0 +1,191 @@
+## Global settings shared across all services
+global:
+  ## Runtime user/group IDs for hotio images
+  env:
+    PUID: 1000
+    PGID: 1000
+    UMASK: "002"
+
+  ## API keys for each service. Set these to stable 32-char hex strings.
+  ## Required when not using existingSecret.
+  apiKeys:
+    sonarr: ""
+    radarr: ""
+    prowlarr: ""
+
+  ## Reference an existing Secret containing API keys and PostgreSQL password.
+  ## When set, no Secret is created by this chart. The Secret must have keys:
+  ##   sonarr-api-key, radarr-api-key, prowlarr-api-key, postgresql-password
+  existingSecret: ""
+
+  ## External PostgreSQL connection settings.
+  ## PostgreSQL must be provisioned outside this chart.
+  postgresql:
+    host: ""
+    port: 5432
+    password: ""
+
+    ## Sonarr database configuration
+    sonarr:
+      user: sonarr
+      mainDatabase: sonarr-main
+      logDatabase: sonarr-log
+
+    ## Radarr database configuration
+    radarr:
+      user: radarr
+      mainDatabase: radarr-main
+      logDatabase: radarr-log
+
+    ## Prowlarr database configuration (optional — Prowlarr can use SQLite)
+    prowlarr:
+      enabled: false
+      user: prowlarr
+      mainDatabase: prowlarr-main
+      logDatabase: prowlarr-log
+
+## Service account configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+## ─── Sonarr ───────────────────────────────────────────────────────────────────
+sonarr:
+  enabled: true
+
+  image:
+    repository: ghcr.io/hotio/sonarr
+    tag: release
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8989
+
+  ## Resource requests and limits
+  resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 256Mi
+
+  ## Persistence
+  persistence:
+    config:
+      enabled: true
+      storageClassName: ""
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+    ## Additional media volumes (existing PVCs)
+    ## - name: downloads
+    ##   claimName: pvc-nfs-downloads
+    ##   mountPath: /downloads
+    ## - name: tv
+    ##   claimName: pvc-nfs-tv
+    ##   mountPath: /tv
+    media: []
+
+  ## Ingress definitions (list, supports multiple ingress controllers)
+  ingress: []
+  # - name: nginx
+  #   enabled: true
+  #   className: nginx
+  #   annotations:
+  #     cert-manager.io/cluster-issuer: letsencrypt-prod
+  #   hosts:
+  #     - host: sonarr.example.com
+  #       paths:
+  #         - path: /
+  #           pathType: Prefix
+  #   tls:
+  #     - secretName: sonarr-tls
+  #       hosts:
+  #         - sonarr.example.com
+
+  ## Declarative configuration (synced via API on install/upgrade)
+  ## See Phase 4 for full config schema
+  config:
+    urlBase: ""
+
+## ─── Radarr ───────────────────────────────────────────────────────────────────
+radarr:
+  enabled: true
+
+  image:
+    repository: ghcr.io/hotio/radarr
+    tag: release
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 7878
+
+  resources: {}
+
+  persistence:
+    config:
+      enabled: true
+      storageClassName: ""
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+    media: []
+
+  ingress: []
+
+  config:
+    urlBase: ""
+
+## ─── Prowlarr ─────────────────────────────────────────────────────────────────
+prowlarr:
+  enabled: true
+
+  image:
+    repository: ghcr.io/hotio/prowlarr
+    tag: release
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 9696
+
+  resources: {}
+
+  persistence:
+    config:
+      enabled: true
+      storageClassName: ""
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+  ingress: []
+
+  config:
+    urlBase: ""
+
+## ─── Config Sync ──────────────────────────────────────────────────────────────
+## Helm hook Job that syncs declarative config to all services after install/upgrade
+configSync:
+  enabled: false  # Enabled in Phase 3+
+  image:
+    repository: alpine
+    tag: "3.19"
+  deleteUnmanaged: false
+  timeout: 300
+
+## ─── Recyclarr ────────────────────────────────────────────────────────────────
+## TRaSH guide sync via Recyclarr CronJob
+recyclarr:
+  enabled: false  # Enabled in Phase 6+
+  image:
+    repository: ghcr.io/recyclarr/recyclarr
+    tag: latest
+  schedule: "0 */6 * * *"
+  persistence:
+    enabled: false
+    storageClassName: ""
+    size: 1Gi

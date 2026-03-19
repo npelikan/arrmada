@@ -1,0 +1,17 @@
+{{- if .Values.sonarr.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "sonarr") }}
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "sonarr") | nindent 4 }}
+spec:
+  type: {{ .Values.sonarr.service.type }}
+  ports:
+    - port: {{ .Values.sonarr.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "arrmada.componentSelectorLabels" (dict "root" . "component" "sonarr") | nindent 4 }}
+{{- end }}
