@@ -1,0 +1,277 @@
+# Full values — all features enabled with example declarative configuration.
+# Demonstrates the complete arrmada feature set:
+# - Config sync (tags, root folders, quality profiles, download clients, naming)
+# - Prowlarr auto-application sync to Sonarr and Radarr
+# - Recyclarr TRaSH guide sync
+# - Dual ingress (nginx + tailscale) per service
+# - PostgreSQL for all three services
+
+global:
+  env:
+    PUID: 1000
+    PGID: 1000
+
+  ## 32-character hex API keys. Generate with: openssl rand -hex 16
+  apiKeys:
+    sonarr:   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"
+    radarr:   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2"
+    prowlarr: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3"
+
+  ## Or reference an existing Secret with keys:
+  ##   sonarr-api-key, radarr-api-key, prowlarr-api-key, postgresql-password
+  # existingSecret: arrmada-secrets
+
+  postgresql:
+    host: "postgres.media.svc.cluster.local"
+    port: 5432
+    password: "changeme"
+
+    sonarr:
+      user: sonarr
+      mainDatabase: sonarr-main
+      logDatabase: sonarr-log
+
+    radarr:
+      user: radarr
+      mainDatabase: radarr-main
+      logDatabase: radarr-log
+
+    prowlarr:
+      enabled: true
+      user: prowlarr
+      mainDatabase: prowlarr-main
+      logDatabase: prowlarr-log
+
+## ─── Sonarr ──────────────────────────────────────────────────────────────────
+sonarr:
+  enabled: true
+
+  persistence:
+    config:
+      enabled: true
+      storageClassName: fast-ssd
+      size: 5Gi
+
+    ## Existing NFS PVCs for media
+    media:
+      - name: downloads
+        claimName: pvc-nfs-downloads
+        mountPath: /downloads
+      - name: tv
+        claimName: pvc-nfs-tv
+        mountPath: /tv
+
+  ## Dual ingress: nginx (external) + tailscale (VPN)
+  ingress:
+    - name: nginx
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      hosts:
+        - host: sonarr.example.com
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: sonarr-tls
+          hosts:
+            - sonarr.example.com
+    - name: tailscale
+      enabled: true
+      className: tailscale
+      hosts:
+        - host: sonarr
+          paths:
+            - path: /
+              pathType: Prefix
+
+  config:
+    tags:
+      - label: 4k
+      - label: hdr
+
+    rootFolders:
+      - path: /tv
+
+    naming:
+      renameEpisodes: true
+      replaceIllegalCharacters: true
+      colonReplacementFormat: "delete"
+      standardEpisodeFormat: "{Series TitleYear} - S{season:00}E{episode:00} - {Episode CleanTitle} [{Custom Formats }{Quality Full}]{-Release Group}"
+      seriesFolderFormat: "{Series TitleYear}"
+      seasonFolderFormat: "Season {season:00}"
+
+    mediaManagement:
+      autoUnmonitorPreviouslyDownloadedEpisodes: false
+      recycleBin: ""
+      autoRenameFolders: true
+
+    ## Download client with password from a Secret (mount via configSync.extraEnvFrom)
+    downloadClients:
+      - name: qBittorrent
+        enable: true
+        implementation: QBittorrent
+        configContract: QBittorrentSettings
+        fields:
+          - name: host
+            value: "${QBIT_HOST}"
+          - name: port
+            value: 8080
+          - name: username
+            value: admin
+          - name: password
+            value: "${QBIT_PASSWORD}"
+          - name: tvCategory
+            value: sonarr
+
+## ─── Radarr ──────────────────────────────────────────────────────────────────
+radarr:
+  enabled: true
+
+  persistence:
+    config:
+      enabled: true
+      storageClassName: fast-ssd
+      size: 5Gi
+    media:
+      - name: downloads
+        claimName: pvc-nfs-downloads
+        mountPath: /downloads
+      - name: movies
+        claimName: pvc-nfs-movies
+        mountPath: /movies
+
+  ingress:
+    - name: nginx
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - host: radarr.example.com
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: radarr-tls
+          hosts:
+            - radarr.example.com
+    - name: tailscale
+      enabled: true
+      className: tailscale
+      hosts:
+        - host: radarr
+          paths:
+            - path: /
+              pathType: Prefix
+
+  config:
+    rootFolders:
+      - path: /movies
+
+    naming:
+      renameMovies: true
+      replaceIllegalCharacters: true
+      colonReplacementFormat: "delete"
+      standardMovieFormat: "{Movie CleanTitle} {(Release Year)} {imdb-{ImdbId}} {edition-{Edition Tags}} {[Custom Formats]}{[Quality Full]}{-Release Group}"
+      movieFolderFormat: "{Movie CleanTitle} {(Release Year)}"
+
+    downloadClients:
+      - name: qBittorrent
+        enable: true
+        implementation: QBittorrent
+        configContract: QBittorrentSettings
+        fields:
+          - name: host
+            value: "${QBIT_HOST}"
+          - name: port
+            value: 8080
+          - name: username
+            value: admin
+          - name: password
+            value: "${QBIT_PASSWORD}"
+          - name: movieCategory
+            value: radarr
+
+## ─── Prowlarr ────────────────────────────────────────────────────────────────
+prowlarr:
+  enabled: true
+
+  persistence:
+    config:
+      enabled: true
+      storageClassName: fast-ssd
+      size: 2Gi
+
+  ingress:
+    - name: tailscale
+      enabled: true
+      className: tailscale
+      hosts:
+        - host: prowlarr
+          paths:
+            - path: /
+              pathType: Prefix
+
+  config:
+    applications:
+      autoSonarr: true   # Auto-creates Prowlarr→Sonarr sync
+      autoRadarr: true   # Auto-creates Prowlarr→Radarr sync
+
+    ## Reference a Secret created with: ./scripts/prowlarr-export.sh
+    indexers:
+      existingSecret: prowlarr-indexers
+      secretKey: indexers.json
+
+## ─── Config Sync ─────────────────────────────────────────────────────────────
+configSync:
+  enabled: true
+  deleteUnmanaged: false
+  timeout: 300
+
+  ## Mount Secret containing download client credentials
+  ## referenced as ${QBIT_HOST} / ${QBIT_PASSWORD} in config above
+  extraEnvFrom:
+    - secretRef:
+        name: arrmada-download-clients
+
+## ─── Recyclarr ───────────────────────────────────────────────────────────────
+recyclarr:
+  enabled: true
+  schedule: "0 */6 * * *"
+
+  persistence:
+    enabled: true
+    storageClassName: fast-ssd
+    size: 2Gi
+    accessMode: ReadWriteOnce
+
+  config:
+    sonarr:
+      - instance_name: main
+        quality_definition:
+          type: series
+        quality_profiles:
+          - name: HD-1080p
+        custom_formats:
+          - trash_ids:
+              - 3a3ff47579026a9e4b651ef28c46b981  # DoVi
+              - 58d6a88f13e2db7f5059c41047876f00  # DV HDR10
+            assign_scores_to:
+              - name: HD-1080p
+                score: 0
+
+    radarr:
+      - instance_name: main
+        quality_definition:
+          type: movie
+        quality_profiles:
+          - name: HD-1080p
+        custom_formats:
+          - trash_ids:
+              - e23edd2482476e595fb990b12e7c609c  # DV HDR10+
+            assign_scores_to:
+              - name: HD-1080p
+                score: 0
