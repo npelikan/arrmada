@@ -37,17 +37,7 @@
             "password": { "type": "string" },
             "sonarr":   { "$ref": "#/$defs/postgresqlService" },
             "radarr":   { "$ref": "#/$defs/postgresqlService" },
-            "prowlarr": {
-              "allOf": [
-                { "$ref": "#/$defs/postgresqlService" },
-                {
-                  "type": "object",
-                  "properties": {
-                    "enabled": { "type": "boolean" }
-                  }
-                }
-              ]
-            }
+            "prowlarr": { "$ref": "#/$defs/postgresqlService" }
           }
         }
       }
