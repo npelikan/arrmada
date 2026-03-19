@@ -1,11 +1,14 @@
 {{- if .Values.prowlarr.enabled }}
 {{- range .Values.prowlarr.ingress }}
 {{- if .enabled }}
+{{- if not .hosts }}
+{{- fail (printf "prowlarr ingress entry '%s' has no hosts defined" (.name | default "<unnamed>")) }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "arrmada.componentName" (dict "root" $ "component" "prowlarr") }}-{{ .name }}
+  name: {{ include "arrmada.componentName" (dict "root" $ "component" "prowlarr") }}-{{ required "Each prowlarr ingress entry must have a 'name' field" .name }}
   labels:
     {{- include "arrmada.componentLabels" (dict "root" $ "component" "prowlarr") | nindent 4 }}
   {{- with .annotations }}

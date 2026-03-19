@@ -1,11 +1,14 @@
 {{- if .Values.radarr.enabled }}
 {{- range .Values.radarr.ingress }}
 {{- if .enabled }}
+{{- if not .hosts }}
+{{- fail (printf "radarr ingress entry '%s' has no hosts defined" (.name | default "<unnamed>")) }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "arrmada.componentName" (dict "root" $ "component" "radarr") }}-{{ .name }}
+  name: {{ include "arrmada.componentName" (dict "root" $ "component" "radarr") }}-{{ required "Each radarr ingress entry must have a 'name' field" .name }}
   labels:
     {{- include "arrmada.componentLabels" (dict "root" $ "component" "radarr") | nindent 4 }}
   {{- with .annotations }}

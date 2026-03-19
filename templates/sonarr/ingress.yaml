@@ -1,11 +1,14 @@
 {{- if .Values.sonarr.enabled }}
 {{- range .Values.sonarr.ingress }}
 {{- if .enabled }}
+{{- if not .hosts }}
+{{- fail (printf "sonarr ingress entry '%s' has no hosts defined" (.name | default "<unnamed>")) }}
+{{- end }}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "arrmada.componentName" (dict "root" $ "component" "sonarr") }}-{{ .name }}
+  name: {{ include "arrmada.componentName" (dict "root" $ "component" "sonarr") }}-{{ required "Each sonarr ingress entry must have a 'name' field" .name }}
   labels:
     {{- include "arrmada.componentLabels" (dict "root" $ "component" "sonarr") | nindent 4 }}
   {{- with .annotations }}
