@@ -31,11 +31,20 @@ tests:
           path: spec.strategy.type
           value: Recreate
 
-  - it: should expose port 8080
+  - it: should expose flood port 3000 and rpc port 5000
     asserts:
       - equal:
           path: spec.template.spec.containers[0].ports[0].containerPort
-          value: 8080
+          value: 3000
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: flood
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].containerPort
+          value: 5000
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].name
+          value: rpc
 
   - it: should have readiness probe
     asserts:

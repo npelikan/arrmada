@@ -388,8 +388,8 @@ prowlarr:
 
 ## ─── rtorrent ─────────────────────────────────────────────────────────────────
 ## rflood: rtorrent with Flood web UI (ghcr.io/hotio/rflood).
-## The Flood UI and XML-RPC endpoint share port 8080 via nginx.
-## Sonarr and Radarr connect to rtorrent via http://{release}-rtorrent:8080/RPC2.
+## Flood web UI is on port 3000; XML/JSON-RPC endpoint is on port 5000.
+## Sonarr and Radarr connect to rtorrent via http://{release}-rtorrent:5000/RPC2.
 ##
 ## WARNING: If you also define a download client named "rTorrent" in
 ## sonarr.config.downloadClients or radarr.config.downloadClients, it will
@@ -405,7 +405,8 @@ rtorrent:
 
   service:
     type: ClusterIP
-    port: 8080
+    floodPort: 3000   # Flood web UI
+    rpcPort: 5000     # XML/JSON-RPC (used by Sonarr/Radarr download client)
 
   resources: {}
 

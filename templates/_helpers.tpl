@@ -127,10 +127,10 @@ Internal service URL for Prowlarr.
 {{- end }}
 
 {{/*
-Internal service URL for rtorrent (Flood UI / XML-RPC).
+Internal service URL for rtorrent RPC endpoint (used by Sonarr/Radarr download client).
 */}}
 {{- define "arrmada.rtorrentUrl" -}}
-{{- printf "http://%s-rtorrent:%d" (include "arrmada.fullname" .) (.Values.rtorrent.service.port | int) }}
+{{- printf "http://%s-rtorrent:%d" (include "arrmada.fullname" .) (.Values.rtorrent.service.rpcPort | int) }}
 {{- end }}
 
 {{/*
@@ -213,7 +213,7 @@ Returns a JSON object (not array) representing one download client.
     "priority" 1
     "fields" (list
       (dict "name" "host" "value" (printf "%s-rtorrent" (include "arrmada.fullname" .)))
-      (dict "name" "port" "value" (.Values.rtorrent.service.port | int))
+      (dict "name" "port" "value" (.Values.rtorrent.service.rpcPort | int))
       (dict "name" "urlBase" "value" "/RPC2")
       (dict "name" "username" "value" "")
       (dict "name" "password" "value" "")
@@ -238,7 +238,7 @@ Returns a JSON object (not array) representing one download client.
     "priority" 1
     "fields" (list
       (dict "name" "host" "value" (printf "%s-rtorrent" (include "arrmada.fullname" .)))
-      (dict "name" "port" "value" (.Values.rtorrent.service.port | int))
+      (dict "name" "port" "value" (.Values.rtorrent.service.rpcPort | int))
       (dict "name" "urlBase" "value" "/RPC2")
       (dict "name" "username" "value" "")
       (dict "name" "password" "value" "")

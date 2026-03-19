@@ -8,10 +8,14 @@ metadata:
 spec:
   type: {{ .Values.rtorrent.service.type }}
   ports:
-    - port: {{ .Values.rtorrent.service.port }}
-      targetPort: http
+    - port: {{ .Values.rtorrent.service.floodPort }}
+      targetPort: flood
       protocol: TCP
-      name: http
+      name: flood
+    - port: {{ .Values.rtorrent.service.rpcPort }}
+      targetPort: rpc
+      protocol: TCP
+      name: rpc
   selector:
     {{- include "arrmada.componentSelectorLabels" (dict "root" . "component" "rtorrent") | nindent 4 }}
 {{- end }}

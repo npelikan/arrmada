@@ -25,17 +25,20 @@ tests:
           path: spec.type
           value: ClusterIP
 
-  - it: should expose port 8080
+  - it: should expose flood port 3000 and rpc port 5000
     asserts:
       - equal:
           path: spec.ports[0].port
-          value: 8080
-
-  - it: should use named port http
-    asserts:
+          value: 3000
       - equal:
           path: spec.ports[0].name
-          value: http
+          value: flood
+      - equal:
+          path: spec.ports[1].port
+          value: 5000
+      - equal:
+          path: spec.ports[1].name
+          value: rpc
 
   - it: should select pods with component label
     asserts:
@@ -57,10 +60,14 @@ tests:
           path: spec.type
           value: LoadBalancer
 
-  - it: should respect custom service port
+  - it: should respect custom flood and rpc ports
     set:
-      rtorrent.service.port: 9090
+      rtorrent.service.floodPort: 3001
+      rtorrent.service.rpcPort: 5001
     asserts:
       - equal:
           path: spec.ports[0].port
-          value: 9090
+          value: 3001
+      - equal:
+          path: spec.ports[1].port
+          value: 5001

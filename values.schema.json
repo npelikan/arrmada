@@ -287,8 +287,9 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "type": { "$ref": "#/$defs/serviceType" },
-            "port": { "$ref": "#/$defs/port" }
+            "type":      { "$ref": "#/$defs/serviceType" },
+            "floodPort": { "$ref": "#/$defs/port" },
+            "rpcPort":   { "$ref": "#/$defs/port" }
           }
         },
         "resources":      { "type": "object" },

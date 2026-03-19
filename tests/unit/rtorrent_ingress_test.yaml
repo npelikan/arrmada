@@ -157,4 +157,4 @@ tests:
           value: RELEASE-NAME-arrmada-rtorrent
       - equal:
           path: spec.rules[0].http.paths[0].backend.service.port.name
-          value: http
+          value: flood
