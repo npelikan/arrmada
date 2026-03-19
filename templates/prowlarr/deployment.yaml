@@ -16,6 +16,10 @@ spec:
     metadata:
       labels:
         {{- include "arrmada.componentLabels" (dict "root" . "component" "prowlarr") | nindent 8 }}
+      {{- with .Values.prowlarr.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
       initContainers:
@@ -67,6 +71,9 @@ spec:
               value: {{ .Values.global.env.PGID | quote }}
             - name: UMASK
               value: {{ .Values.global.env.UMASK | quote }}
+            {{- with .Values.prowlarr.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           readinessProbe:
             httpGet:
               path: /ping
@@ -100,4 +107,16 @@ spec:
           configMap:
             name: {{ include "arrmada.componentName" (dict "root" . "component" "prowlarr") }}-init
             defaultMode: 0755
+      {{- with .Values.prowlarr.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.prowlarr.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.prowlarr.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{- end }}

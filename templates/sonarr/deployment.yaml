@@ -16,6 +16,10 @@ spec:
     metadata:
       labels:
         {{- include "arrmada.componentLabels" (dict "root" . "component" "sonarr") | nindent 8 }}
+      {{- with .Values.sonarr.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
       initContainers:
@@ -65,6 +69,9 @@ spec:
               value: {{ .Values.global.env.PGID | quote }}
             - name: UMASK
               value: {{ .Values.global.env.UMASK | quote }}
+            {{- with .Values.sonarr.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           readinessProbe:
             httpGet:
               path: /ping
@@ -107,4 +114,16 @@ spec:
           persistentVolumeClaim:
             claimName: {{ .claimName }}
         {{- end }}
+      {{- with .Values.sonarr.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.sonarr.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.sonarr.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
 {{- end }}
