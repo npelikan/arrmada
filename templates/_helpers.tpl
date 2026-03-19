@@ -166,6 +166,9 @@ mkdir -p /config
 {{- end }}
   printf '</Config>\n'
 } > /config/config.xml
+# Allow the service user (PUID) to read and write the file.
+# The init container runs as root; the main container runs as the hotio user.
+chmod 666 /config/config.xml
 echo "config.xml written successfully"
 {{- end }}
 
@@ -187,7 +190,10 @@ if the old list format is supplied.
 {{- end -}}
 {{- $apps := list -}}
 {{- if .Values.prowlarr.config.applications.autoSonarr }}
-  {{- $sonarrCats := default (list 5000 5010 5020 5030 5040 5045 5050 5060 5070 5080) .Values.prowlarr.config.applications.sonarrSyncCategories -}}
+  {{- $sonarrCats := (list 5000 5010 5020 5030 5040 5045 5050 5060 5070 5080) -}}
+  {{- if hasKey .Values.prowlarr.config.applications "sonarrSyncCategories" -}}
+    {{- $sonarrCats = .Values.prowlarr.config.applications.sonarrSyncCategories -}}
+  {{- end -}}
   {{- $entry := dict
     "name" "Sonarr"
     "syncLevel" "fullSync"
@@ -204,7 +210,10 @@ if the old list format is supplied.
   {{- $apps = append $apps $entry -}}
 {{- end -}}
 {{- if .Values.prowlarr.config.applications.autoRadarr }}
-  {{- $radarrCats := default (list 2000 2010 2020 2030 2040 2045 2050 2060 2070 2080) .Values.prowlarr.config.applications.radarrSyncCategories -}}
+  {{- $radarrCats := (list 2000 2010 2020 2030 2040 2045 2050 2060 2070 2080) -}}
+  {{- if hasKey .Values.prowlarr.config.applications "radarrSyncCategories" -}}
+    {{- $radarrCats = .Values.prowlarr.config.applications.radarrSyncCategories -}}
+  {{- end -}}
   {{- $entry := dict
     "name" "Radarr"
     "syncLevel" "fullSync"
