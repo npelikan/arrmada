@@ -172,10 +172,22 @@ sync_quality_definitions() {
 # env object. This is JSON-aware: values are injected as proper JSON strings so
 # special characters (quotes, backslashes, newlines) cannot break the document.
 #
-# Pattern: any JSON string value equal to "${VAR_NAME}" is replaced with the
-# value of the environment variable VAR_NAME. Partial substitutions within a
-# larger string (e.g. "prefix-${VAR}-suffix") are not supported; use a
-# dedicated env var for the full field value in that case.
+# BREAKING CHANGE vs envsubst:
+#   This function only replaces a JSON string value when it consists *entirely*
+#   of a single "${VAR_NAME}" placeholder. Partial string interpolation such as
+#   "http://${HOST}/path" is NOT supported. Move the full composed value into a
+#   dedicated environment variable instead, e.g.:
+#     export FULL_URL="http://myhost/path"   # then use "${FULL_URL}" in JSON
+#
+# Undefined variables: if VAR_NAME is not set in the environment the original
+#   literal placeholder (e.g. "${MISSING}") is kept in the output. This differs
+#   from envsubst, which would substitute an empty string. Inspect output values
+#   that still look like "${...}" to catch unintentionally unset variables.
+#
+# Export requirement: jq reads variables from the process environment via
+#   env[$var]. Variables must be exported (export VAR=val) before calling this
+#   function; unexported shell variables are invisible to jq and will not be
+#   substituted.
 resolve_env_vars() {
   local input="$1"
   printf '%s' "${input}" | jq 'walk(
