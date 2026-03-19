@@ -24,7 +24,7 @@ spec:
       serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
       initContainers:
         - name: init-config
-          image: alpine:3.19
+          image: "{{ .Values.configSync.image.repository }}:{{ .Values.configSync.image.tag }}"
           command: ["/bin/sh", "/scripts/init-config.sh"]
           env:
             - name: API_KEY
@@ -56,7 +56,7 @@ spec:
               mountPath: /scripts
         {{- if and .Values.sonarr.config.rootFolders (or .Values.sonarr.persistence.media .Values.global.media.enabled) }}
         - name: create-root-folders
-          image: alpine:3.19
+          image: "{{ .Values.configSync.image.repository }}:{{ .Values.configSync.image.tag }}"
           command:
             - sh
             - -c
@@ -68,9 +68,9 @@ spec:
               {{- end }}
           env:
             - name: PUID
-              value: {{ .Values.global.env.PUID | quote }}
+              value: {{ .Values.global.env.PUID | default "1000" | quote }}
             - name: PGID
-              value: {{ .Values.global.env.PGID | quote }}
+              value: {{ .Values.global.env.PGID | default "1000" | quote }}
           volumeMounts:
             {{- range .Values.sonarr.persistence.media }}
             - name: {{ .name }}
