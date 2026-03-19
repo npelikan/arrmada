@@ -1,18 +1,30 @@
 # arrmada
 
-Unified Helm chart for the *arr media automation stack — **Sonarr**, **Radarr**, **Prowlarr**, and **rtorrent** — with **fully declarative configuration**.
+A Helm chart for the \*arr media automation stack — **Sonarr**, **Radarr**, **Prowlarr**, and **rtorrent** — built for Kubernetes the way Kubernetes was meant to be used.
 
-Unlike typical charts that only deploy containers, arrmada manages the complete application configuration lifecycle via REST APIs: quality profiles, custom formats, download clients, indexers, media naming, root folders, notifications, and more — all defined as Helm values.
+## Why does this exist?
 
-## Features
+The \*arr apps are great. They're also... pets.
 
-- **Fully declarative**: All application config is defined in `values.yaml` and synced via API on install/upgrade
+They were designed for the classic home-server era: one box, one install, a SQLite database tucked away in `/config`, and a wiki page explaining which specific steps to follow in which specific order after a restore. Run them in a VM, run them on your NAS, run them in docker-compose — they fit that world naturally. Their state is local. Their config lives in a UI. Backing up means `rsync /config` and hoping for the best.
+
+Kubernetes, meanwhile, is built around the opposite idea. Pods are cattle. Any pod can die and be rescheduled on any node at any time, and the system should converge back to the desired state on its own. Config is declared up front, checked into version control, and applied consistently. "Just SSH in and click around" is not an upgrade path.
+
+Getting the \*arr stack to actually work this way has historically involved a lot of duct tape: ReadWriteOnce PVCs that pin pods to a single node, init containers that hand-copy SQLite databases, and post-install notes reminding you to click through five settings screens before anything actually works. The apps run in Kubernetes, but they're still pets.
+
+arrmada takes a different approach. All application configuration — quality profiles, naming formats, download clients, root folders, indexers, notifications — is declared in `values.yaml` and synced to the apps via their own REST APIs on every install and upgrade. Sonarr and Radarr use external PostgreSQL instead of SQLite, so their state lives outside the pod. Kill a pod, delete a namespace, rebuild the cluster — a `helm upgrade` brings everything back exactly as configured.
+
+The name is a stretch, but "arr" + "armada" was right there.
+
+## What's in the box
+
+- **Fully declarative config**: All application settings live in `values.yaml` and sync to the apps via API on every install/upgrade
 - **PostgreSQL-backed**: Sonarr and Radarr use external PostgreSQL; Prowlarr supports it optionally
-- **Integrated download client**: rtorrent (rflood) deploys alongside the *arr stack and is auto-registered as a download client in Sonarr and Radarr
-- **Shared media volumes**: A single `global.media` array defines NFS/RWX volumes mounted identically by all services — no per-service PVC wiring
+- **Integrated download client**: rtorrent (rflood) deploys alongside the \*arr stack and auto-registers itself as a download client in Sonarr and Radarr
+- **Shared media volumes**: One `global.media` array defines NFS/RWX volumes mounted at identical paths by every service — no per-service PVC wiring
 - **TRaSH Guide integration**: Recyclarr CronJob syncs community-vetted quality profiles and custom formats
 - **Prowlarr as indexer hub**: Auto-generates Prowlarr→Sonarr/Radarr application connections
-- **Secure by design**: API keys in Kubernetes Secrets; sensitive fields use `${ENV_VAR}` substitution at sync time
+- **Secure by design**: API keys in Kubernetes Secrets; sensitive fields use `${ENV_VAR}` substitution at sync time, never stored in ConfigMaps
 - **Multi-ingress**: Each service supports multiple Ingress controllers (nginx, tailscale, etc.)
 - **Schema validation**: `values.schema.json` catches invalid API keys, port ranges, and typos at `helm lint` time
 
