@@ -1,6 +1,10 @@
-# Minimal values — deploy all three services without config sync.
+# Minimal values — deploy Sonarr, Radarr, Prowlarr, and rtorrent without config sync.
 # Provides working deployments backed by external PostgreSQL.
 # Config sync and Recyclarr are disabled.
+#
+# rtorrent (rflood) is disabled here because it requires RPC credentials
+# and shared media PVCs (global.media) to be useful. See values-full.yaml
+# for a complete rtorrent example.
 
 global:
   env:
@@ -55,6 +59,11 @@ prowlarr:
       enabled: true
       storageClassName: local-path
       size: 1Gi
+
+## rtorrent disabled in minimal mode — requires RPC credentials and shared media PVCs.
+## See values-full.yaml for a working rtorrent example.
+rtorrent:
+  enabled: false
 
 ## Config sync disabled — configure services via the UI
 configSync:

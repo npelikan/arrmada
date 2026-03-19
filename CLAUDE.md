@@ -1,6 +1,6 @@
 # Arrmada
 
-Unified Helm chart for the *arr media automation stack (Sonarr, Radarr, Prowlarr).
+Unified Helm chart for the *arr media automation stack (Sonarr, Radarr, Prowlarr, rtorrent).
 
 ## Project Overview
 
@@ -8,11 +8,12 @@ Arrmada is a single Helm chart that deploys and **declaratively configures** the
 
 ### Core Services
 
-| Service  | Purpose                  | Default Port | API Version |
-|----------|--------------------------|--------------|-------------|
-| Sonarr   | TV series management     | 8989         | v3          |
-| Radarr   | Movie management         | 7878         | v3          |
-| Prowlarr | Indexer management/proxy | 9696         | v1          |
+| Service  | Purpose                              | Default Port(s)         | API Version |
+|----------|--------------------------------------|-------------------------|-------------|
+| Sonarr   | TV series management                 | 8989                    | v3          |
+| Radarr   | Movie management                     | 7878                    | v3          |
+| Prowlarr | Indexer management/proxy             | 9696                    | v1          |
+| rtorrent | BitTorrent client (rflood image)     | 3000 (Flood), 5000 (RPC) | —          |
 
 ### Key Design Principles
 
@@ -34,9 +35,23 @@ Arrmada is a single Helm chart that deploys and **declaratively configures** the
                     ┌──────┴──────┐              ┌───────┴───────┐
                     │   Sonarr    │              │    Radarr     │
                     │   (TV)      │              │   (Movies)    │
-                    └──────┬──────┘              └───────┬───────┘
-                           │                             │
-                    ┌──────┴─────────────────────────────┴──────┐
+                    └──┬───┬──────┘              └──────┬───┬────┘
+                       │   │ download client             │   │
+                       │   └─────────────┐   ┌──────────┘   │
+                       │                 ▼   ▼              │
+                       │          ┌─────────────┐           │
+                       │          │  rtorrent   │           │
+                       │          │  (rflood)   │           │
+                       │          │  :3000 UI   │           │
+                       │          │  :5000 RPC  │           │
+                       │          └──────┬──────┘           │
+                       │                 │                   │
+                    ┌──┴─────────────────┴───────────────────┴──┐
+                    │          Shared Media PVCs                 │
+                    │  (global.media → ReadWriteMany NFS, etc.) │
+                    │  All services mount at identical paths     │
+                    └───────────────────────────────────────────┘
+                    ┌───────────────────────────────────────────┐
                     │          External PostgreSQL               │
                     │  (sonarr-main, sonarr-log,                │
                     │   radarr-main, radarr-log,                │
@@ -87,6 +102,11 @@ arrmada/
 │   │   ├── ingress.yaml
 │   │   ├── configmap.yaml
 │   │   └── pvc.yaml
+│   ├── rtorrent/
+│   │   ├── deployment.yaml    # rflood container + htpasswd init container
+│   │   ├── service.yaml       # ClusterIP: port 3000 (Flood UI), 5000 (RPC)
+│   │   ├── ingress.yaml
+│   │   └── pvc.yaml
 │   │
 │   ├── # Configuration management
 │   ├── config/
@@ -100,6 +120,8 @@ arrmada/
 │   │   └── cronjob.yaml       # Scheduled TRaSH guide sync
 │   │
 │   └── # Shared
+│       ├── media-pvc.yaml     # PVCs from global.media (ReadWriteMany, shared by all services)
+│       ├── secrets.yaml       # Central Secret: API keys, PostgreSQL password
 │       └── serviceaccount.yaml
 │
 ├── scripts/
@@ -119,7 +141,7 @@ arrmada/
 ## Technology Stack
 
 - **Helm 3**: Chart packaging and templating
-- **Container images**: `ghcr.io/hotio/sonarr`, `ghcr.io/hotio/radarr`, `ghcr.io/hotio/prowlarr`
+- **Container images**: `ghcr.io/hotio/sonarr`, `ghcr.io/hotio/radarr`, `ghcr.io/hotio/prowlarr`, `ghcr.io/hotio/rflood` (rTorrent + Flood UI)
 - **Recyclarr**: `ghcr.io/recyclarr/recyclarr` (TRaSH guide sync)
 - **Config sync**: Custom shell scripts using `curl` + `jq` running in alpine-based init container
 - **PostgreSQL**: External, user-provided (connection string in values/secrets)
@@ -178,8 +200,10 @@ The full implementation plan is in `PLAN.md` (gitignored). It defines 10 sequent
 
 ### values.yaml Conventions
 
-- Top-level keys: `global`, `sonarr`, `radarr`, `prowlarr`, `recyclarr`, `configSync`
-- Each service has: `enabled`, `image`, `service`, `ingress`, `resources`, `persistence`, `config`, `postgresql`
+- Top-level keys: `global`, `sonarr`, `radarr`, `prowlarr`, `rtorrent`, `recyclarr`, `configSync`
+- Each *arr service has: `enabled`, `image`, `service`, `ingress`, `resources`, `persistence`, `config`, `postgresql`
+- `rtorrent` has: `enabled`, `image`, `service`, `ingress`, `resources`, `persistence`, `rpcAuth`
+- `global.media` is a list of shared ReadWriteMany PVCs mounted by all services; each entry has `mountPath`, `downloadDir`, `tvDir`, `moviesDir`
 - Config sections mirror the *arr API structure for clarity
 - Secrets reference format: use `existingSecret` / `secretKeyRef` patterns
 

@@ -1,6 +1,6 @@
 # arrmada
 
-Unified Helm chart for the *arr media automation stack — **Sonarr**, **Radarr**, and **Prowlarr** — with **fully declarative configuration**.
+Unified Helm chart for the *arr media automation stack — **Sonarr**, **Radarr**, **Prowlarr**, and **rtorrent** — with **fully declarative configuration**.
 
 Unlike typical charts that only deploy containers, arrmada manages the complete application configuration lifecycle via REST APIs: quality profiles, custom formats, download clients, indexers, media naming, root folders, notifications, and more — all defined as Helm values.
 
@@ -8,6 +8,8 @@ Unlike typical charts that only deploy containers, arrmada manages the complete 
 
 - **Fully declarative**: All application config is defined in `values.yaml` and synced via API on install/upgrade
 - **PostgreSQL-backed**: Sonarr and Radarr use external PostgreSQL; Prowlarr supports it optionally
+- **Integrated download client**: rtorrent (rflood) deploys alongside the *arr stack and is auto-registered as a download client in Sonarr and Radarr
+- **Shared media volumes**: A single `global.media` array defines NFS/RWX volumes mounted identically by all services — no per-service PVC wiring
 - **TRaSH Guide integration**: Recyclarr CronJob syncs community-vetted quality profiles and custom formats
 - **Prowlarr as indexer hub**: Auto-generates Prowlarr→Sonarr/Radarr application connections
 - **Secure by design**: API keys in Kubernetes Secrets; sensitive fields use `${ENV_VAR}` substitution at sync time
@@ -16,18 +18,19 @@ Unlike typical charts that only deploy containers, arrmada manages the complete 
 
 ## Services
 
-| Service  | Port | API | PostgreSQL |
-|----------|------|-----|------------|
-| Sonarr   | 8989 | v3  | Required   |
-| Radarr   | 7878 | v3  | Required   |
-| Prowlarr | 9696 | v1  | Optional   |
+| Service  | Port(s)        | API | PostgreSQL |
+|----------|----------------|-----|------------|
+| Sonarr   | 8989           | v3  | Required   |
+| Radarr   | 7878           | v3  | Required   |
+| Prowlarr | 9696           | v1  | Optional   |
+| rtorrent | 3000 (Flood UI), 5000 (RPC) | — | — |
 
 ## Prerequisites
 
 - Helm 3
 - External PostgreSQL with databases pre-created (see [Database Setup](#database-setup))
 - PVCs for config storage (or `storageClassName` for dynamic provisioning)
-- Existing PVCs for media directories (NFS shares, etc.)
+- ReadWriteMany PVCs for shared media directories (NFS, etc.)
 
 ## Quick Start
 
@@ -125,9 +128,45 @@ global:
   existingSecret: arrmada-secrets
 ```
 
+### Shared Media Volumes
+
+The `global.media` array defines ReadWriteMany volumes that are mounted at identical paths by Sonarr, Radarr, and rtorrent. This ensures all services see the same filesystem layout.
+
+```yaml
+global:
+  media:
+    - name: data
+      mountPath: /data
+      existingClaim: pvc-nfs-data   # pre-provisioned ReadWriteMany PVC
+      downloadDir: /data/downloads  # rtorrent saves completed downloads here
+      tvDir: /data/tv               # auto-added to Sonarr root folders
+      moviesDir: /data/movies       # auto-added to Radarr root folders
+```
+
+Each entry creates a shared PVC (or uses an existing one) and:
+- Mounts it in Sonarr, Radarr, and rtorrent at `mountPath`
+- Adds `tvDir` as a Sonarr root folder (via config sync)
+- Adds `moviesDir` as a Radarr root folder (via config sync)
+- Configures rtorrent's download path to `downloadDir`
+
+**All PVCs must be ReadWriteMany** — Sonarr, Radarr, and rtorrent all mount them simultaneously.
+
+Dynamic provisioning is also supported:
+```yaml
+global:
+  media:
+    - name: data
+      mountPath: /data
+      storageClassName: nfs-csi
+      size: 10Ti
+      downloadDir: /data/downloads
+      tvDir: /data/tv
+      moviesDir: /data/movies
+```
+
 ### Service Configuration
 
-Each service (sonarr, radarr, prowlarr) shares the same base structure:
+Each *arr service (sonarr, radarr, prowlarr) shares the same base structure:
 
 ```yaml
 sonarr:
@@ -145,10 +184,6 @@ sonarr:
       enabled: true
       storageClassName: fast-ssd
       size: 5Gi
-    media:   # Existing PVCs for media directories
-      - name: tv
-        claimName: pvc-nfs-tv
-        mountPath: /tv
   ingress: []
   config: {}
 ```
@@ -181,6 +216,58 @@ sonarr:
           paths: [{path: /, pathType: Prefix}]
 ```
 
+### rtorrent (rTorrent + Flood UI)
+
+rtorrent is deployed using [hotio/rflood](https://hotio.dev/containers/rflood/), which bundles rTorrent with the Flood web interface.
+
+```yaml
+rtorrent:
+  enabled: true
+  service:
+    floodPort: 3000   # Flood web UI
+    rpcPort: 5000     # XML/JSON-RPC endpoint (used by Sonarr/Radarr)
+  persistence:
+    config:
+      storageClassName: fast-ssd
+      size: 1Gi
+  ingress:
+    - name: nginx
+      enabled: true
+      className: nginx
+      hosts:
+        - host: flood.example.com
+          paths: [{path: /, pathType: Prefix}]
+```
+
+#### RPC Authentication
+
+rflood requires HTTP basic auth on its RPC endpoint. An init container generates a bcrypt htpasswd entry from the configured credentials and writes it to `/config/rpc2/basic_auth_credentials` before the main container starts.
+
+Use an existing Secret (recommended):
+
+```yaml
+rtorrent:
+  rpcAuth:
+    existingSecret: rtorrent-rpc-auth   # must contain 'username' and 'password' keys
+```
+
+Or set inline values (password is sensitive — prefer `existingSecret`):
+
+```yaml
+rtorrent:
+  rpcAuth:
+    username: rtorrent
+    password: changeme
+```
+
+#### Auto-Registration as Download Client
+
+When `rtorrent.enabled: true`, the chart automatically registers rtorrent as a download client in both Sonarr and Radarr using the chart-internal service URL and RPC credentials. You do not need to add it manually under `sonarr.config.downloadClients` or `radarr.config.downloadClients`.
+
+> **Note**: If you define a download client named `rTorrent` manually in `sonarr.config.downloadClients` or `radarr.config.downloadClients`, it will appear as a duplicate alongside the auto-generated entry. Remove the manual entry to avoid duplicates.
+
+Download directories are derived from `global.media[*].downloadDir`.
+
 ### Declarative Configuration
 
 Enable config sync to manage application settings via values:
@@ -210,9 +297,21 @@ sonarr:
           - {name: password, value: "${QBIT_PASSWORD}"}
 ```
 
-#### Sensitive Fields in Download Clients
+#### Environment Variable Substitution
 
-Use `${ENV_VAR}` syntax for credentials. Mount a Secret with the actual values:
+Use `${ENV_VAR}` syntax anywhere in config values to reference environment variables that are resolved at sync time, not stored in ConfigMaps. This is the recommended way to handle credentials.
+
+Built-in variables injected by the chart:
+
+| Variable | Value |
+|----------|-------|
+| `${SONARR_API_KEY}` | Sonarr API key from the chart Secret |
+| `${RADARR_API_KEY}` | Radarr API key from the chart Secret |
+| `${PROWLARR_API_KEY}` | Prowlarr API key from the chart Secret |
+| `${RTORRENT_RPC_USERNAME}` | rtorrent RPC username |
+| `${RTORRENT_RPC_PASSWORD}` | rtorrent RPC password |
+
+To inject additional secrets (e.g. download client passwords), mount them via `configSync.extraEnvFrom`:
 
 ```yaml
 configSync:
@@ -224,6 +323,8 @@ configSync:
 # QBIT_HOST: qbittorrent.media.svc.cluster.local
 # QBIT_PASSWORD: mypassword
 ```
+
+Substitution applies to JSON string fields only. The full field value must be the variable reference (e.g. `"${QBIT_HOST}"`) — partial substitution within a string is not supported.
 
 #### Managed Resource Types
 
@@ -246,6 +347,17 @@ Config sync manages the following in dependency order:
 | config/ui | ✓ | ✓ | ✓ | singleton |
 | applications | — | — | ✓ | name |
 | indexers | — | — | ✓ | name |
+
+#### Drift Reconciliation
+
+By default, config sync only runs on install and upgrade. To also catch manual UI changes, enable periodic reconciliation:
+
+```yaml
+configSync:
+  schedule: "0 */6 * * *"   # CronJob that re-syncs every 6 hours
+```
+
+Leave `schedule` empty (the default) to disable the CronJob.
 
 ### Prowlarr Application Sync
 
@@ -293,6 +405,10 @@ Recyclarr syncs community quality profiles and custom formats from the TRaSH gui
 recyclarr:
   enabled: true
   schedule: "0 */6 * * *"   # Every 6 hours
+  persistence:
+    enabled: true            # Cache TRaSH guide data between runs
+    storageClassName: fast-ssd
+    size: 2Gi
   config:
     sonarr:
       - instance_name: main
@@ -322,6 +438,8 @@ recyclarr:
 
 API keys are injected via `!env_var SONARR_API_KEY` / `!env_var RADARR_API_KEY`
 directly from the chart's Secret — never stored in the ConfigMap.
+
+Enabling `recyclarr.persistence` caches the TRaSH guide data between runs, which is useful when running on a schedule.
 
 ## Database Setup
 
@@ -359,6 +477,7 @@ kubectl logs -n media job/arrmada-config-sync
 kubectl logs -n media -l app.kubernetes.io/component=sonarr
 kubectl logs -n media -l app.kubernetes.io/component=radarr
 kubectl logs -n media -l app.kubernetes.io/component=prowlarr
+kubectl logs -n media -l app.kubernetes.io/component=rtorrent
 
 # Force config re-sync
 kubectl delete job -n media arrmada-config-sync
@@ -376,6 +495,7 @@ helm template arrmada . -f values.yaml --debug
 
 # Render specific template
 helm template arrmada . -f values.yaml -s templates/sonarr/deployment.yaml
+helm template arrmada . -f values.yaml -s templates/rtorrent/deployment.yaml
 ```
 
 ## License

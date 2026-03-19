@@ -2,9 +2,11 @@
 # Demonstrates the complete arrmada feature set:
 # - Config sync (tags, root folders, quality profiles, download clients, naming)
 # - Prowlarr auto-application sync to Sonarr and Radarr
+# - rtorrent (rflood) download client, auto-registered in Sonarr and Radarr
+# - Shared media PVCs (global.media) mounted by all services at identical paths
 # - Recyclarr TRaSH guide sync
 # - Dual ingress (nginx + tailscale) per service
-# - PostgreSQL for all three services
+# - PostgreSQL for all three *arr services
 
 global:
   env:
@@ -219,6 +221,40 @@ prowlarr:
     indexers:
       existingSecret: prowlarr-indexers
       secretKey: indexers.json
+
+## ─── rtorrent ────────────────────────────────────────────────────────────────
+## rflood: rTorrent with Flood web UI (port 3000) and XML/JSON-RPC (port 5000).
+## When enabled, rtorrent is automatically registered as a download client in
+## both Sonarr and Radarr. No manual download client entry is needed.
+##
+## Download directories come from global.media[*].downloadDir above.
+rtorrent:
+  enabled: true
+
+  persistence:
+    config:
+      storageClassName: fast-ssd
+      size: 1Gi
+
+  ingress:
+    - name: tailscale
+      enabled: true
+      className: tailscale
+      hosts:
+        - host: flood
+          paths:
+            - path: /
+              pathType: Prefix
+
+  ## RPC basic-auth credentials.
+  ## Preferred: reference an existing Secret with 'username' and 'password' keys.
+  rpcAuth:
+    existingSecret: rtorrent-rpc-auth
+
+  ## Alternative — set inline (password is sensitive; prefer existingSecret):
+  # rpcAuth:
+  #   username: rtorrent
+  #   password: changeme
 
 ## ─── Config Sync ─────────────────────────────────────────────────────────────
 configSync:
