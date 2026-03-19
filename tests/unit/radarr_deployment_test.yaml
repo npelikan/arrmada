@@ -1,0 +1,89 @@
+suite: radarr deployment
+templates:
+  - radarr/deployment.yaml
+values:
+  - ../values-test.yaml
+tests:
+  - it: should create deployment when enabled
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-arrmada-radarr
+
+  - it: should not create deployment when disabled
+    set:
+      radarr.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should use correct container image
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ghcr\.io/hotio/radarr
+
+  - it: should use Recreate update strategy
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: should have init container for config.xml
+    asserts:
+      - isNotEmpty:
+          path: spec.template.spec.initContainers
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: init-config
+
+  - it: should expose port 7878
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 7878
+
+  - it: should have readiness probe on /ping
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /ping
+
+  - it: should set component label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: radarr
+
+  - it: should mount config volume
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+          any: true
+
+  - it: should use PVC for config when persistence enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-arrmada-radarr-config
+
+  - it: should include media volumes when configured
+    set:
+      radarr.persistence.media:
+        - name: movies
+          claimName: pvc-nfs-movies
+          mountPath: /movies
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: movies
+            persistentVolumeClaim:
+              claimName: pvc-nfs-movies

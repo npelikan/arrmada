@@ -1,0 +1,12 @@
+-- Test PostgreSQL initialization script.
+-- Creates users and databases for all three *arr services.
+CREATE USER sonarr WITH PASSWORD 'testpassword';
+CREATE USER radarr WITH PASSWORD 'testpassword';
+CREATE USER prowlarr WITH PASSWORD 'testpassword';
+
+CREATE DATABASE "sonarr-main" OWNER sonarr;
+CREATE DATABASE "sonarr-log"  OWNER sonarr;
+CREATE DATABASE "radarr-main" OWNER radarr;
+CREATE DATABASE "radarr-log"  OWNER radarr;
+CREATE DATABASE "prowlarr-main" OWNER prowlarr;
+CREATE DATABASE "prowlarr-log"  OWNER prowlarr;

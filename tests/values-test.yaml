@@ -1,0 +1,77 @@
+## Test values used for unit and integration tests.
+## Uses local-path storage (k3d default) and the in-cluster PostgreSQL fixture.
+
+global:
+  env:
+    PUID: 1000
+    PGID: 1000
+    UMASK: "002"
+
+  apiKeys:
+    sonarr:   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1"
+    radarr:   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2"
+    prowlarr: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3"
+
+  postgresql:
+    host: postgresql.arrmada-test.svc.cluster.local
+    port: 5432
+    password: testpassword
+
+    sonarr:
+      user: sonarr
+      mainDatabase: sonarr-main
+      logDatabase: sonarr-log
+
+    radarr:
+      user: radarr
+      mainDatabase: radarr-main
+      logDatabase: radarr-log
+
+    prowlarr:
+      enabled: true
+      user: prowlarr
+      mainDatabase: prowlarr-main
+      logDatabase: prowlarr-log
+
+sonarr:
+  enabled: true
+  persistence:
+    config:
+      enabled: true
+      storageClassName: local-path
+      size: 1Gi
+  config:
+    rootFolders:
+      - path: /downloads/tv
+    tags:
+      - label: test-tag
+
+radarr:
+  enabled: true
+  persistence:
+    config:
+      enabled: true
+      storageClassName: local-path
+      size: 1Gi
+  config:
+    rootFolders:
+      - path: /downloads/movies
+
+prowlarr:
+  enabled: true
+  persistence:
+    config:
+      enabled: true
+      storageClassName: local-path
+      size: 1Gi
+  config:
+    applications:
+      autoSonarr: true
+      autoRadarr: true
+
+configSync:
+  enabled: true
+  timeout: 180
+
+recyclarr:
+  enabled: false

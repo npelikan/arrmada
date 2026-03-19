@@ -1,0 +1,66 @@
+suite: helper labels and naming
+templates:
+  - sonarr/deployment.yaml
+values:
+  - ../values-test.yaml
+tests:
+  - it: should include helm.sh/chart label
+    asserts:
+      - isNotEmpty:
+          path: metadata.labels["helm.sh/chart"]
+
+  - it: should include app.kubernetes.io/name label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: arrmada
+
+  - it: should include app.kubernetes.io/instance label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: RELEASE-NAME
+
+  - it: should include app.kubernetes.io/component label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: sonarr
+
+  - it: should include app.kubernetes.io/managed-by label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
+
+  - it: should use fullname as name prefix
+    asserts:
+      - matchRegex:
+          path: metadata.name
+          pattern: ^RELEASE-NAME-arrmada-sonarr$
+
+  - it: should have selector labels matching template labels
+    asserts:
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/name"]
+          value: arrmada
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/instance"]
+          value: RELEASE-NAME
+      - equal:
+          path: spec.selector.matchLabels["app.kubernetes.io/component"]
+          value: sonarr
+
+  - it: should reference chart-managed secret by default
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0].valueFrom.secretKeyRef.name
+          value: RELEASE-NAME-arrmada-secrets
+
+  - it: should reference existingSecret when set
+    set:
+      global.existingSecret: my-custom-secret
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].env[0].valueFrom.secretKeyRef.name
+          value: my-custom-secret
