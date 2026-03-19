@@ -158,6 +158,10 @@ On first deploy, the init container generates `config.xml` with a pre-defined AP
 | UI Settings         | Yes    | Yes    | Yes      | Theme, language, date format              |
 | General Settings    | Yes    | Yes    | Yes      | Auth, logging, analytics, proxy           |
 
+## Implementation Plan
+
+The full implementation plan is in `PLAN.md` (gitignored). It defines 10 sequential phases, each producing a working chart. Refer to it for phase goals, file lists, key details, and verification steps.
+
 ## Workflow Rules
 
 - **Commit on every turn**: This project uses roborev for code review. Create a commit at the end of every turn of work so changes can be reviewed incrementally.
