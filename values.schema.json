@@ -11,7 +11,7 @@
       "properties": {
         "env": {
           "type": "object",
-          "additionalProperties": false,
+          "additionalProperties": { "type": ["string", "integer", "boolean"] },
           "properties": {
             "PUID": { "type": "integer", "minimum": 0, "maximum": 65535 },
             "PGID": { "type": "integer", "minimum": 0, "maximum": 65535 },
@@ -142,7 +142,7 @@
       "properties": {
         "enabled":          { "type": "boolean" },
         "storageClassName": { "type": "string" },
-        "size":             { "type": "string", "pattern": "^[0-9]+(Mi|Gi|Ti)$" },
+        "size":             { "type": "string", "pattern": "^([0-9]+(\\.[0-9]+)?(e[0-9]+)?[EPTGMK]i?|[0-9]+)$" },
         "accessMode":       { "$ref": "#/$defs/accessMode" }
       }
     },
@@ -241,8 +241,8 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled":  { "type": "boolean" },
-        "image":    { "$ref": "#/$defs/image" },
+        "enabled":        { "type": "boolean" },
+        "image":          { "$ref": "#/$defs/image" },
         "service": {
           "type": "object",
           "additionalProperties": false,
@@ -251,21 +251,32 @@
             "port": { "$ref": "#/$defs/port" }
           }
         },
-        "resources":   { "type": "object" },
-        "persistence": { "$ref": "#/$defs/mediaServicePersistence" },
+        "resources":      { "type": "object" },
+        "persistence":    { "$ref": "#/$defs/mediaServicePersistence" },
         "ingress": {
           "type": "array",
           "items": { "$ref": "#/$defs/ingressEntry" }
         },
-        "config": { "$ref": "#/$defs/mediaConfig" }
+        "config":         { "$ref": "#/$defs/mediaConfig" },
+        "nodeSelector":   { "type": "object" },
+        "tolerations": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "affinity":       { "type": "object" },
+        "podAnnotations": { "type": "object" },
+        "extraEnv": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
       }
     },
     "prowlarrService": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "enabled":  { "type": "boolean" },
-        "image":    { "$ref": "#/$defs/image" },
+        "enabled":        { "type": "boolean" },
+        "image":          { "$ref": "#/$defs/image" },
         "service": {
           "type": "object",
           "additionalProperties": false,
@@ -274,7 +285,18 @@
             "port": { "$ref": "#/$defs/port" }
           }
         },
-        "resources": { "type": "object" },
+        "resources":      { "type": "object" },
+        "nodeSelector":   { "type": "object" },
+        "tolerations": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "affinity":       { "type": "object" },
+        "podAnnotations": { "type": "object" },
+        "extraEnv": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
         "persistence": {
           "type": "object",
           "additionalProperties": false,
