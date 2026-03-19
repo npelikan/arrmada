@@ -7,5 +7,5 @@ metadata:
     {{- include "arrmada.componentLabels" (dict "root" . "component" "sonarr") | nindent 4 }}
 data:
   init-config.sh: |
-    {{- include "arrmada.initConfigScript" (dict "root" . "port" 8989 "pgEnabled" true) | nindent 4 }}
+    {{- include "arrmada.initConfigScript" (dict "root" . "port" 8989 "pgEnabled" .Values.global.postgresql.sonarr.enabled) | nindent 4 }}
 {{- end }}

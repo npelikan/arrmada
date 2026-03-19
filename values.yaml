@@ -27,17 +27,19 @@ global:
 
     ## Sonarr database configuration
     sonarr:
+      enabled: true
       user: sonarr
       mainDatabase: sonarr-main
       logDatabase: sonarr-log
 
     ## Radarr database configuration
     radarr:
+      enabled: true
       user: radarr
       mainDatabase: radarr-main
       logDatabase: radarr-log
 
-    ## Prowlarr database configuration (optional — Prowlarr can use SQLite)
+    ## Prowlarr database configuration (optional — Prowlarr can use SQLite as fallback)
     prowlarr:
       enabled: false
       user: prowlarr

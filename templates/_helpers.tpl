@@ -130,31 +130,42 @@ Internal service URL for Prowlarr.
 Init config script for *arr services.
 Writes config.xml to /config based on environment variables injected from the Secret.
 Call with dict "root" . "port" 8989 "pgEnabled" true
+
+NOTE: XML special characters (&, <, >, ", ') in secrets are escaped at write time
+using a shell xml_escape helper to prevent malformed config.xml on startup.
 */}}
 {{- define "arrmada.initConfigScript" -}}
 {{- $port := .port -}}
 {{- $pgEnabled := .pgEnabled -}}
 #!/bin/sh
 set -e
+
+# Escape XML special characters in a value.
+# Usage: xml_escape "$VALUE"
+xml_escape() {
+  printf '%s' "$1" \
+    | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&apos;/g'
+}
+
 mkdir -p /config
-cat > /config/config.xml << XMLEOF
-<Config>
-  <LogLevel>info</LogLevel>
-  <UpdateMechanism>Docker</UpdateMechanism>
-  <AnalyticsEnabled>False</AnalyticsEnabled>
-  <ApiKey>${API_KEY}</ApiKey>
-  <Port>{{ $port }}</Port>
-  <UrlBase>${URL_BASE}</UrlBase>
+{
+  printf '<Config>\n'
+  printf '  <LogLevel>info</LogLevel>\n'
+  printf '  <UpdateMechanism>Docker</UpdateMechanism>\n'
+  printf '  <AnalyticsEnabled>False</AnalyticsEnabled>\n'
+  printf '  <ApiKey>%s</ApiKey>\n'       "$(xml_escape "${API_KEY}")"
+  printf '  <Port>{{ $port }}</Port>\n'
+  printf '  <UrlBase>%s</UrlBase>\n'     "$(xml_escape "${URL_BASE}")"
 {{- if $pgEnabled }}
-  <PostgresHost>${PG_HOST}</PostgresHost>
-  <PostgresPort>${PG_PORT}</PostgresPort>
-  <PostgresUser>${PG_USER}</PostgresUser>
-  <PostgresPassword>${PG_PASSWORD}</PostgresPassword>
-  <PostgresMainDb>${PG_MAIN_DB}</PostgresMainDb>
-  <PostgresLogDb>${PG_LOG_DB}</PostgresLogDb>
+  printf '  <PostgresHost>%s</PostgresHost>\n'     "$(xml_escape "${PG_HOST}")"
+  printf '  <PostgresPort>%s</PostgresPort>\n'     "$(xml_escape "${PG_PORT}")"
+  printf '  <PostgresUser>%s</PostgresUser>\n'     "$(xml_escape "${PG_USER}")"
+  printf '  <PostgresPassword>%s</PostgresPassword>\n' "$(xml_escape "${PG_PASSWORD}")"
+  printf '  <PostgresMainDb>%s</PostgresMainDb>\n' "$(xml_escape "${PG_MAIN_DB}")"
+  printf '  <PostgresLogDb>%s</PostgresLogDb>\n'   "$(xml_escape "${PG_LOG_DB}")"
 {{- end }}
-</Config>
-XMLEOF
+  printf '</Config>\n'
+} > /config/config.xml
 echo "config.xml written successfully"
 {{- end }}
 
