@@ -22,10 +22,12 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
-      {{- if .Values.global.media.enabled }}
+      {{- if not .Values.global.media.enabled }}
+      {{- fail "rtorrent requires global.media.enabled=true for shared media access" }}
+      {{- end }}
       initContainers:
         - name: create-download-dir
-          image: alpine:3.19
+          image: "{{ .Values.configSync.image.repository }}:{{ .Values.configSync.image.tag }}"
           command:
             - sh
             - -c
@@ -39,9 +41,8 @@ spec:
             - name: PGID
               value: {{ .Values.global.env.PGID | quote }}
           volumeMounts:
-            - name: media
+            - name: global-media
               mountPath: {{ .Values.global.media.mountPath }}
-      {{- end }}
       containers:
         - name: rtorrent
           image: "{{ .Values.rtorrent.image.repository }}:{{ .Values.rtorrent.image.tag }}"
@@ -81,10 +82,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
-            {{- if .Values.global.media.enabled }}
-            - name: media
+            - name: global-media
               mountPath: {{ .Values.global.media.mountPath }}
-            {{- end }}
       volumes:
         - name: config
           {{- if .Values.rtorrent.persistence.config.enabled }}
@@ -93,11 +92,9 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-        {{- if .Values.global.media.enabled }}
-        - name: media
+        - name: global-media
           persistentVolumeClaim:
             claimName: {{ .Values.global.media.existingClaim | default (printf "%s-media" (include "arrmada.fullname" .)) }}
-        {{- end }}
       {{- with .Values.rtorrent.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

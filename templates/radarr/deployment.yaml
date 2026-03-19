@@ -77,7 +77,7 @@ spec:
               mountPath: {{ .mountPath }}
             {{- end }}
             {{- if .Values.global.media.enabled }}
-            - name: media
+            - name: global-media
               mountPath: {{ .Values.global.media.mountPath }}
             {{- end }}
         {{- end }}
@@ -125,7 +125,7 @@ spec:
               mountPath: {{ .mountPath }}
             {{- end }}
             {{- if .Values.global.media.enabled }}
-            - name: media
+            - name: global-media
               mountPath: {{ .Values.global.media.mountPath }}
             {{- end }}
       volumes:
@@ -152,7 +152,7 @@ spec:
           {{- end }}
         {{- end }}
         {{- if .Values.global.media.enabled }}
-        - name: media
+        - name: global-media
           persistentVolumeClaim:
             claimName: {{ .Values.global.media.existingClaim | default (printf "%s-media" (include "arrmada.fullname" .)) }}
         {{- end }}
