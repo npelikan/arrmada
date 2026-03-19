@@ -1,16 +1,17 @@
 #!/bin/bash
 # Full integration test orchestrator.
-# Requires: k3d cluster running, KUBECONFIG pointing to tests/.kubeconfig.yml
+# KUBECONFIG is inherited from the environment (set by the Makefile or the
+# caller).  Falls back to tests/.kubeconfig relative to this script if unset.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTS_DIR="${SCRIPT_DIR}/.."
 
-export KUBECONFIG="${TESTS_DIR}/.kubeconfig.yml"
+export KUBECONFIG="${KUBECONFIG:-${TESTS_DIR}/.kubeconfig}"
 NAMESPACE="arrmada-test"
 
 echo "Using KUBECONFIG=${KUBECONFIG}"
-kubectl cluster-info --context "$(kubectl config current-context)" > /dev/null
+kubectl cluster-info > /dev/null
 
 echo ""
 echo "=== Phase 1: Deploy PostgreSQL fixture ==="

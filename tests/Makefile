@@ -1,8 +1,11 @@
 ## Arrmada test runner
 ## Run from this directory: make lint / make unit / make integration
 ## Or from repo root:       make -C tests lint
+##
+## CI/CD: set KUBECONFIG before calling make, or pre-create tests/.kubeconfig.
+## Local: run `make setup` to create a k3d cluster if no kubeconfig exists.
 
-KUBECONFIG  := $(shell pwd)/.kubeconfig.yml
+KUBECONFIG  := $(shell pwd)/.kubeconfig
 K3D_CLUSTER := arrmada-test
 NAMESPACE   := arrmada-test
 
@@ -20,19 +23,17 @@ lint:
 unit:
 	helm unittest ../ -f 'tests/unit/*_test.yaml'
 
-## ── Integration tests (requires k3d cluster) ─────────────────────────────────
+## ── Integration tests ────────────────────────────────────────────────────────
+## Uses existing tests/.kubeconfig if present; otherwise calls setup to create
+## a k3d cluster first.
 integration: setup
 	./integration/run.sh
 
 ## ── Cluster lifecycle ────────────────────────────────────────────────────────
+## setup: no-op if tests/.kubeconfig already exists (CI or pre-provisioned).
+##        Creates a k3d cluster and writes the kubeconfig otherwise (local dev).
 setup:
-	@if ! k3d cluster list 2>/dev/null | grep -q $(K3D_CLUSTER); then \
-		k3d cluster create --config k3d-cluster.yaml; \
-	else \
-		echo "Cluster $(K3D_CLUSTER) already exists"; \
-	fi
-	k3d kubeconfig get $(K3D_CLUSTER) > $(KUBECONFIG)
-	@echo "Kubeconfig written to $(KUBECONFIG)"
+	./setup.sh
 
 teardown:
 	k3d cluster delete $(K3D_CLUSTER)

@@ -5,7 +5,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTS_DIR="${SCRIPT_DIR}/.."
 
-export KUBECONFIG="${TESTS_DIR}/.kubeconfig.yml"
+export KUBECONFIG="${KUBECONFIG:-${TESTS_DIR}/.kubeconfig}"
 NAMESPACE="arrmada-test"
 RELEASE="arrmada-test"
 JOB_NAME="${RELEASE}-config-sync"
