@@ -78,6 +78,28 @@ spec:
               value: /indexers/{{ .Values.prowlarr.config.indexers.secretKey | default "indexers.json" }}
             {{- end }}
 
+            ## ── rtorrent RPC credentials ─────────────────────────────────────
+            {{- if .Values.rtorrent.enabled }}
+            - name: RTORRENT_RPC_USERNAME
+              {{- if .Values.rtorrent.rpcAuth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rtorrent.rpcAuth.existingSecret }}
+                  key: {{ .Values.rtorrent.rpcAuth.secretUsernameKey | default "username" }}
+              {{- else }}
+              value: {{ .Values.rtorrent.rpcAuth.username | default "" | quote }}
+              {{- end }}
+            - name: RTORRENT_RPC_PASSWORD
+              {{- if .Values.rtorrent.rpcAuth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rtorrent.rpcAuth.existingSecret }}
+                  key: {{ .Values.rtorrent.rpcAuth.secretPasswordKey | default "password" }}
+              {{- else }}
+              value: {{ .Values.rtorrent.rpcAuth.password | default "" | quote }}
+              {{- end }}
+            {{- end }}
+
           {{- with .Values.configSync.extraEnvFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}

@@ -419,6 +419,25 @@ rtorrent:
 
   ingress: []
 
+  ## RPC basic-auth credentials for the rflood container.
+  ## rflood requires HTTP basic auth on its XML-RPC endpoint (/RPC2 on rpcPort).
+  ## The htpasswd entry is written to /config/rpc2/basic_auth_credentials via an
+  ## init container so the rflood nginx proxy accepts Sonarr/Radarr connections.
+  ##
+  ## Generate the htpasswd value with:
+  ##   htpasswd -Bbn <username> <password>
+  ##
+  ## Preferred: reference an existing Secret with three keys.
+  ## Fallback:  set inline values (htpasswd is sensitive; prefer existingSecret).
+  rpcAuth:
+    existingSecret: ""       # Secret name; must contain username, password, htpasswd keys
+    secretUsernameKey: username
+    secretPasswordKey: password
+    secretHtpasswdKey: htpasswd
+    username: ""             # inline plaintext username
+    password: ""             # inline plaintext password
+    htpasswd: ""             # inline htpasswd entry: output of htpasswd -Bbn <user> <pass>
+
   ## Download directories are configured per-volume via global.media[*].downloadDir.
 
 ## ─── Config Sync ──────────────────────────────────────────────────────────────

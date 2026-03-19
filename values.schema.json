@@ -304,6 +304,19 @@
           "type": "array",
           "items": { "$ref": "#/$defs/ingressEntry" }
         },
+        "rpcAuth": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "existingSecret":    { "type": "string" },
+            "secretUsernameKey": { "type": "string" },
+            "secretPasswordKey": { "type": "string" },
+            "secretHtpasswdKey": { "type": "string" },
+            "username":          { "type": "string" },
+            "password":          { "type": "string" },
+            "htpasswd":          { "type": "string" }
+          }
+        },
         "nodeSelector":   { "type": "object" },
         "tolerations": {
           "type": "array",

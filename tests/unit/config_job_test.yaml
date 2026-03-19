@@ -125,3 +125,38 @@ tests:
           content:
             name: PROWLARR_INDEXERS_FILE
             value: /indexers/indexers.json
+
+  - it: should set RTORRENT_RPC_USERNAME from inline value when rtorrent enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RTORRENT_RPC_USERNAME
+            value: testuser
+
+  - it: should set RTORRENT_RPC_PASSWORD from inline value when rtorrent enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RTORRENT_RPC_PASSWORD
+            value: abcitseasyas123
+
+  - it: should use secretKeyRef for RPC username when existingSecret is set
+    set:
+      rtorrent.rpcAuth.existingSecret: my-rpc-secret
+      rtorrent.rpcAuth.secretUsernameKey: username
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "RTORRENT_RPC_USERNAME")].valueFrom.secretKeyRef.name
+          value: my-rpc-secret
+
+  - it: should not set RPC env vars when rtorrent is disabled
+    set:
+      rtorrent.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RTORRENT_RPC_USERNAME
+          any: true

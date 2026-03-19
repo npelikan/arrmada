@@ -22,8 +22,11 @@ spec:
       {{- end }}
     spec:
       serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
-      {{- if include "arrmada.rtorrentHasDownloadDirs" . }}
+      {{- $hasDownloadDirs := include "arrmada.rtorrentHasDownloadDirs" . }}
+      {{- $hasRpcAuth := or .Values.rtorrent.rpcAuth.existingSecret .Values.rtorrent.rpcAuth.htpasswd }}
+      {{- if or $hasDownloadDirs $hasRpcAuth }}
       initContainers:
+        {{- if $hasDownloadDirs }}
         - name: create-download-dirs
           image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
           command:
@@ -44,6 +47,36 @@ spec:
               value: {{ .Values.global.env.PGID | quote }}
           volumeMounts:
             {{- include "arrmada.globalMediaVolumeMounts" . | nindent 12 }}
+        {{- end }}
+        {{- if $hasRpcAuth }}
+        - name: write-rpc-credentials
+          image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              mkdir -p /config/rpc2
+              printf '%s\n' "${RTORRENT_RPC_HTPASSWD}" > /config/rpc2/basic_auth_credentials
+              chown -R "${PUID}:${PGID}" /config/rpc2
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+            - name: RTORRENT_RPC_HTPASSWD
+              {{- if .Values.rtorrent.rpcAuth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rtorrent.rpcAuth.existingSecret }}
+                  key: {{ .Values.rtorrent.rpcAuth.secretHtpasswdKey | default "htpasswd" }}
+              {{- else }}
+              value: {{ .Values.rtorrent.rpcAuth.htpasswd | quote }}
+              {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+        {{- end }}
       {{- end }}
       containers:
         - name: rtorrent

@@ -118,16 +118,43 @@ tests:
             name: create-download-dirs
           any: true
 
-  - it: should not have init container when no downloadDirs defined
+  - it: should not have init container when no downloadDirs and no rpcAuth
     set:
       global.media:
         - name: data
           mountPath: /data
           storageClassName: local-path
           size: 5Gi
+      rtorrent.rpcAuth.htpasswd: ""
+      rtorrent.rpcAuth.existingSecret: ""
     asserts:
       - isNull:
           path: spec.template.spec.initContainers
+
+  - it: should have write-rpc-credentials init container when rpcAuth htpasswd is set
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers
+          content:
+            name: write-rpc-credentials
+          any: true
+
+  - it: should set RTORRENT_RPC_HTPASSWD env var on write-rpc-credentials init container
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env
+          content:
+            name: RTORRENT_RPC_HTPASSWD
+          any: true
+
+  - it: should use secretKeyRef for htpasswd when existingSecret is set
+    set:
+      rtorrent.rpcAuth.existingSecret: my-rpc-secret
+      rtorrent.rpcAuth.htpasswd: ""
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env[?(@.name == "RTORRENT_RPC_HTPASSWD")].valueFrom.secretKeyRef.name
+          value: my-rpc-secret
 
   - it: should set component label
     asserts:
