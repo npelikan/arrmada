@@ -6,6 +6,14 @@ global:
     PGID: 1000
     UMASK: "002"
 
+  ## Utility image used by lightweight init containers (mkdir/chown).
+  ## Must provide sh, mkdir, and chown. Decoupled from configSync.image so that
+  ## changing the config-sync image does not affect unrelated init containers.
+  utility:
+    image:
+      repository: alpine
+      tag: "3.19"
+
   ## API keys for each service. Set these to stable 32-char hex strings.
   ## Required when not using existingSecret.
   apiKeys:

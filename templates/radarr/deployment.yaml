@@ -24,7 +24,7 @@ spec:
       serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
       initContainers:
         - name: init-config
-          image: "{{ .Values.configSync.image.repository }}:{{ .Values.configSync.image.tag }}"
+          image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
           command: ["/bin/sh", "/scripts/init-config.sh"]
           env:
             - name: API_KEY
@@ -56,7 +56,7 @@ spec:
               mountPath: /scripts
         {{- if and .Values.radarr.config.rootFolders (or .Values.radarr.persistence.media .Values.global.media.enabled) }}
         - name: create-root-folders
-          image: "{{ .Values.configSync.image.repository }}:{{ .Values.configSync.image.tag }}"
+          image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
           command:
             - sh
             - -c

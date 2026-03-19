@@ -27,7 +27,7 @@ spec:
       {{- end }}
       initContainers:
         - name: create-download-dir
-          image: "{{ .Values.configSync.image.repository }}:{{ .Values.configSync.image.tag }}"
+          image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
           command:
             - sh
             - -c
@@ -37,9 +37,9 @@ spec:
               chown "${PUID}:${PGID}" {{ .Values.rtorrent.config.downloadDir | quote }} 2>/dev/null || true
           env:
             - name: PUID
-              value: {{ .Values.global.env.PUID | quote }}
+              value: {{ .Values.global.env.PUID | default "1000" | quote }}
             - name: PGID
-              value: {{ .Values.global.env.PGID | quote }}
+              value: {{ .Values.global.env.PGID | default "1000" | quote }}
           volumeMounts:
             - name: global-media
               mountPath: {{ .Values.global.media.mountPath }}
