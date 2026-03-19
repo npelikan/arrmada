@@ -311,10 +311,8 @@
             "existingSecret":    { "type": "string" },
             "secretUsernameKey": { "type": "string" },
             "secretPasswordKey": { "type": "string" },
-            "secretHtpasswdKey": { "type": "string" },
             "username":          { "type": "string" },
-            "password":          { "type": "string" },
-            "htpasswd":          { "type": "string" }
+            "password":          { "type": "string" }
           }
         },
         "nodeSelector":   { "type": "object" },

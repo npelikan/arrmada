@@ -84,7 +84,6 @@ rtorrent:
   rpcAuth:
     username: testuser
     password: abcitseasyas123
-    htpasswd: "testuser:$2y$05$kyeQhMGMjEBWw/AMd7ChweQ/kPgh06oeeEr6Ajhzt5jeb8Zak9D66"
 
 configSync:
   enabled: true

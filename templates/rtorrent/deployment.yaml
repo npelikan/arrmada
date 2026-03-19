@@ -23,7 +23,7 @@ spec:
     spec:
       serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
       {{- $hasDownloadDirs := include "arrmada.rtorrentHasDownloadDirs" . }}
-      {{- $hasRpcAuth := or .Values.rtorrent.rpcAuth.existingSecret .Values.rtorrent.rpcAuth.htpasswd }}
+      {{- $hasRpcAuth := or .Values.rtorrent.rpcAuth.existingSecret .Values.rtorrent.rpcAuth.username }}
       {{- if or $hasDownloadDirs $hasRpcAuth }}
       initContainers:
         {{- if $hasDownloadDirs }}
@@ -56,22 +56,32 @@ spec:
             - -c
             - |
               set -e
+              apk add --no-cache --quiet apache2-utils
               mkdir -p /config/rpc2
-              printf '%s\n' "${RTORRENT_RPC_HTPASSWD}" > /config/rpc2/basic_auth_credentials
+              htpasswd -Bbn "${RTORRENT_RPC_USERNAME}" "${RTORRENT_RPC_PASSWORD}" > /config/rpc2/basic_auth_credentials
               chown -R "${PUID}:${PGID}" /config/rpc2
           env:
             - name: PUID
               value: {{ .Values.global.env.PUID | quote }}
             - name: PGID
               value: {{ .Values.global.env.PGID | quote }}
-            - name: RTORRENT_RPC_HTPASSWD
+            - name: RTORRENT_RPC_USERNAME
               {{- if .Values.rtorrent.rpcAuth.existingSecret }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.rtorrent.rpcAuth.existingSecret }}
-                  key: {{ .Values.rtorrent.rpcAuth.secretHtpasswdKey | default "htpasswd" }}
+                  key: {{ .Values.rtorrent.rpcAuth.secretUsernameKey | default "username" }}
               {{- else }}
-              value: {{ .Values.rtorrent.rpcAuth.htpasswd | quote }}
+              value: {{ .Values.rtorrent.rpcAuth.username | quote }}
+              {{- end }}
+            - name: RTORRENT_RPC_PASSWORD
+              {{- if .Values.rtorrent.rpcAuth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rtorrent.rpcAuth.existingSecret }}
+                  key: {{ .Values.rtorrent.rpcAuth.secretPasswordKey | default "password" }}
+              {{- else }}
+              value: {{ .Values.rtorrent.rpcAuth.password | quote }}
               {{- end }}
           volumeMounts:
             - name: config

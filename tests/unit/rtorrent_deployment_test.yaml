@@ -125,13 +125,13 @@ tests:
           mountPath: /data
           storageClassName: local-path
           size: 5Gi
-      rtorrent.rpcAuth.htpasswd: ""
+      rtorrent.rpcAuth.username: ""
       rtorrent.rpcAuth.existingSecret: ""
     asserts:
       - isNull:
           path: spec.template.spec.initContainers
 
-  - it: should have write-rpc-credentials init container when rpcAuth htpasswd is set
+  - it: should have write-rpc-credentials init container when rpcAuth username is set
     asserts:
       - contains:
           path: spec.template.spec.initContainers
@@ -139,21 +139,32 @@ tests:
             name: write-rpc-credentials
           any: true
 
-  - it: should set RTORRENT_RPC_HTPASSWD env var on write-rpc-credentials init container
+  - it: should set RTORRENT_RPC_USERNAME env var on write-rpc-credentials init container
     asserts:
       - contains:
           path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env
           content:
-            name: RTORRENT_RPC_HTPASSWD
+            name: RTORRENT_RPC_USERNAME
           any: true
 
-  - it: should use secretKeyRef for htpasswd when existingSecret is set
+  - it: should set RTORRENT_RPC_PASSWORD env var on write-rpc-credentials init container
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env
+          content:
+            name: RTORRENT_RPC_PASSWORD
+          any: true
+
+  - it: should use secretKeyRef for username and password when existingSecret is set
     set:
       rtorrent.rpcAuth.existingSecret: my-rpc-secret
-      rtorrent.rpcAuth.htpasswd: ""
+      rtorrent.rpcAuth.username: ""
     asserts:
       - equal:
-          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env[?(@.name == "RTORRENT_RPC_HTPASSWD")].valueFrom.secretKeyRef.name
+          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env[?(@.name == "RTORRENT_RPC_USERNAME")].valueFrom.secretKeyRef.name
+          value: my-rpc-secret
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env[?(@.name == "RTORRENT_RPC_PASSWORD")].valueFrom.secretKeyRef.name
           value: my-rpc-secret
 
   - it: should set component label
