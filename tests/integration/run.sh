@@ -45,4 +45,8 @@ echo "=== Phase 7: Verify download client sync ==="
 "${SCRIPT_DIR}/test-download-clients.sh"
 
 echo ""
+echo "=== Phase 8: Verify Recyclarr integration ==="
+"${SCRIPT_DIR}/test-recyclarr.sh"
+
+echo ""
 echo "=== All integration tests passed ==="
