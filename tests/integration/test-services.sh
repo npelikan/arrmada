@@ -12,6 +12,16 @@ RELEASE="arrmada-test"
 PASS=0
 FAIL=0
 
+# Track the current port-forward PID so the trap can clean up on early exit
+CURRENT_PF_PID=""
+cleanup() {
+  if [[ -n "${CURRENT_PF_PID}" ]]; then
+    kill "${CURRENT_PF_PID}" 2>/dev/null || true
+    wait "${CURRENT_PF_PID}" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
 check_ping() {
   local svc="$1"
   local port="$2"
@@ -23,6 +33,7 @@ check_ping() {
     -n "${NAMESPACE}" \
     "svc/${RELEASE}-${svc}" "${local_port}:${port}" &
   local pf_pid=$!
+  CURRENT_PF_PID="${pf_pid}"
   sleep 3
 
   local status
@@ -30,6 +41,7 @@ check_ping() {
     "http://localhost:${local_port}/ping" || echo "000")
   kill "${pf_pid}" 2>/dev/null || true
   wait "${pf_pid}" 2>/dev/null || true
+  CURRENT_PF_PID=""
 
   if [[ "${status}" == "200" ]]; then
     echo "  PASS: ${svc} /ping returned 200"

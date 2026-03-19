@@ -12,6 +12,16 @@ RELEASE="arrmada-test"
 PASS=0
 FAIL=0
 
+# Ensure background port-forward is killed on exit/error
+PF_PID=""
+cleanup() {
+  if [[ -n "${PF_PID}" ]]; then
+    kill "${PF_PID}" 2>/dev/null || true
+    wait "${PF_PID}" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
 check_contains() {
   local desc="$1"
   local haystack="$2"
@@ -27,7 +37,7 @@ check_contains() {
 }
 
 # Get Prowlarr API key
-PROWLARR_KEY=$(kubectl get secret "${RELEASE}-arrmada-secrets" \
+PROWLARR_KEY=$(kubectl get secret "${RELEASE}-secrets" \
   --kubeconfig "${KUBECONFIG}" \
   -n "${NAMESPACE}" \
   -o "jsonpath={.data.prowlarr-api-key}" | base64 -d)

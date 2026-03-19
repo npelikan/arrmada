@@ -12,6 +12,17 @@ RELEASE="arrmada-test"
 PASS=0
 FAIL=0
 
+# Track active port-forward PIDs for cleanup on exit
+PF_PIDS=()
+
+cleanup() {
+  for pid in "${PF_PIDS[@]:-}"; do
+    kill "${pid}" 2>/dev/null || true
+    wait "${pid}" 2>/dev/null || true
+  done
+}
+trap cleanup EXIT
+
 check() {
   local desc="$1"
   local result="$2"
@@ -24,20 +35,22 @@ check() {
   fi
 }
 
-# Port-forward helper — starts a port-forward in background
+# Port-forward helper — starts a port-forward in background and registers it for cleanup
 start_pf() {
   local svc="$1" port="$2" local_port="$3"
   kubectl port-forward \
     --kubeconfig "${KUBECONFIG}" \
     -n "${NAMESPACE}" \
     "svc/${RELEASE}-${svc}" "${local_port}:${port}" &
-  echo $!
+  local pid=$!
+  PF_PIDS+=("${pid}")
+  echo "${pid}"
 }
 
 # Fetch the API key from the chart Secret
 get_api_key() {
   local key="$1"
-  kubectl get secret "${RELEASE}-arrmada-secrets" \
+  kubectl get secret "${RELEASE}-secrets" \
     --kubeconfig "${KUBECONFIG}" \
     -n "${NAMESPACE}" \
     -o "jsonpath={.data.${key}}" | base64 -d
