@@ -23,7 +23,7 @@ tests:
     asserts:
       - matchRegex:
           path: spec.template.spec.containers[0].image
-          pattern: ghcr\.io/hotio/rtorrent
+          pattern: ghcr\.io/hotio/rflood
 
   - it: should use Recreate update strategy
     asserts:

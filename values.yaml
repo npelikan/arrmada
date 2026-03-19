@@ -387,7 +387,7 @@ prowlarr:
     ui: {}
 
 ## ─── rtorrent ─────────────────────────────────────────────────────────────────
-## rtorrent with Flood web UI (ghcr.io/hotio/rtorrent).
+## rflood: rtorrent with Flood web UI (ghcr.io/hotio/rflood).
 ## The Flood UI and XML-RPC endpoint share port 8080 via nginx.
 ## Sonarr and Radarr connect to rtorrent via http://{release}-rtorrent:8080/RPC2.
 ##
@@ -399,7 +399,7 @@ rtorrent:
   enabled: true
 
   image:
-    repository: ghcr.io/hotio/rtorrent
+    repository: ghcr.io/hotio/rflood
     tag: release
     pullPolicy: IfNotPresent
 
