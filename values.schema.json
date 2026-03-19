@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Arrmada values",
+  "description": "JSON Schema for arrmada Helm chart values",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "global": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "env": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "PUID": { "type": "integer", "minimum": 0, "maximum": 65535 },
+            "PGID": { "type": "integer", "minimum": 0, "maximum": 65535 },
+            "UMASK": { "type": "string", "pattern": "^[0-7]{3,4}$" }
+          }
+        },
+        "apiKeys": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sonarr":   { "$ref": "#/$defs/apiKey" },
+            "radarr":   { "$ref": "#/$defs/apiKey" },
+            "prowlarr": { "$ref": "#/$defs/apiKey" }
+          }
+        },
+        "existingSecret": { "type": "string" },
+        "postgresql": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host":     { "type": "string" },
+            "port":     { "$ref": "#/$defs/port" },
+            "password": { "type": "string" },
+            "sonarr":   { "$ref": "#/$defs/postgresqlService" },
+            "radarr":   { "$ref": "#/$defs/postgresqlService" },
+            "prowlarr": {
+              "allOf": [
+                { "$ref": "#/$defs/postgresqlService" },
+                {
+                  "type": "object",
+                  "properties": {
+                    "enabled": { "type": "boolean" }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create":      { "type": "boolean" },
+        "annotations": { "type": "object" },
+        "name":        { "type": "string" }
+      }
+    },
+    "sonarr":   { "$ref": "#/$defs/mediaService" },
+    "radarr":   { "$ref": "#/$defs/mediaService" },
+    "prowlarr": { "$ref": "#/$defs/prowlarrService" },
+    "configSync": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":         { "type": "boolean" },
+        "image":           { "$ref": "#/$defs/image" },
+        "deleteUnmanaged": { "type": "boolean" },
+        "timeout":         { "type": "integer", "minimum": 30, "maximum": 3600 },
+        "schedule":        { "type": "string" },
+        "extraEnvFrom":    { "type": "array" }
+      }
+    },
+    "recyclarr": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":     { "type": "boolean" },
+        "image":       { "$ref": "#/$defs/image" },
+        "schedule":    { "type": "string" },
+        "persistence": { "$ref": "#/$defs/persistence" },
+        "config": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "sonarr": { "type": "array" },
+            "radarr": { "type": "array" }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "apiKey": {
+      "type": "string",
+      "description": "32-character hexadecimal API key, or empty string",
+      "oneOf": [
+        { "const": "" },
+        { "pattern": "^[0-9a-fA-F]{32}$" }
+      ]
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository":  { "type": "string", "minLength": 1 },
+        "tag":         { "type": "string", "minLength": 1 },
+        "pullPolicy":  { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }
+      },
+      "required": ["repository", "tag"]
+    },
+    "serviceType": {
+      "type": "string",
+      "enum": ["ClusterIP", "NodePort", "LoadBalancer", "ExternalName"]
+    },
+    "accessMode": {
+      "type": "string",
+      "enum": ["ReadWriteOnce", "ReadWriteMany", "ReadOnlyMany", "ReadWriteOncePod"]
+    },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":          { "type": "boolean" },
+        "storageClassName": { "type": "string" },
+        "size":             { "type": "string", "pattern": "^[0-9]+(Mi|Gi|Ti)$" },
+        "accessMode":       { "$ref": "#/$defs/accessMode" }
+      }
+    },
+    "postgresqlService": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":      { "type": "boolean" },
+        "user":         { "type": "string" },
+        "mainDatabase": { "type": "string" },
+        "logDatabase":  { "type": "string" }
+      }
+    },
+    "ingressEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name":        { "type": "string", "minLength": 1 },
+        "enabled":     { "type": "boolean" },
+        "className":   { "type": "string" },
+        "annotations": { "type": "object" },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["host"],
+            "properties": {
+              "host":  { "type": "string" },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["path"],
+                  "properties": {
+                    "path":     { "type": "string" },
+                    "pathType": { "type": "string", "enum": ["Prefix", "Exact", "ImplementationSpecific"] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "secretName": { "type": "string" },
+              "hosts":      { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "mediaConfig": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "urlBase":            { "type": "string" },
+        "tags":               { "type": "array" },
+        "rootFolders":        { "type": "array" },
+        "qualityDefinitions": { "type": "array" },
+        "customFormats":      { "type": "array" },
+        "qualityProfiles":    { "type": "array" },
+        "delayProfiles":      { "type": "array" },
+        "downloadClients":    { "type": "array" },
+        "notifications":      { "type": "array" },
+        "importLists":        { "type": "array" },
+        "naming":             { "type": "object" },
+        "mediaManagement":    { "type": "object" },
+        "host":               { "type": "object" },
+        "ui":                 { "type": "object" }
+      }
+    },
+    "mediaServicePersistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "config": { "$ref": "#/$defs/persistence" },
+        "media": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "claimName", "mountPath"],
+            "properties": {
+              "name":      { "type": "string", "minLength": 1 },
+              "claimName": { "type": "string", "minLength": 1 },
+              "mountPath": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "mediaService": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":  { "type": "boolean" },
+        "image":    { "$ref": "#/$defs/image" },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": { "$ref": "#/$defs/serviceType" },
+            "port": { "$ref": "#/$defs/port" }
+          }
+        },
+        "resources":   { "type": "object" },
+        "persistence": { "$ref": "#/$defs/mediaServicePersistence" },
+        "ingress": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ingressEntry" }
+        },
+        "config": { "$ref": "#/$defs/mediaConfig" }
+      }
+    },
+    "prowlarrService": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":  { "type": "boolean" },
+        "image":    { "$ref": "#/$defs/image" },
+        "service": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": { "$ref": "#/$defs/serviceType" },
+            "port": { "$ref": "#/$defs/port" }
+          }
+        },
+        "resources": { "type": "object" },
+        "persistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "config": { "$ref": "#/$defs/persistence" }
+          }
+        },
+        "ingress": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ingressEntry" }
+        },
+        "config": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "urlBase": { "type": "string" },
+            "tags":    { "type": "array" },
+            "downloadClients":  { "type": "array" },
+            "notifications":    { "type": "array" },
+            "applications": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "autoSonarr": { "type": "boolean" },
+                "autoRadarr": { "type": "boolean" },
+                "extra":      { "type": "array" }
+              }
+            },
+            "indexers": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "existingSecret": { "type": "string" },
+                "secretKey":      { "type": "string" }
+              }
+            },
+            "host": { "type": "object" },
+            "ui":   { "type": "object" }
+          }
+        }
+      }
+    }
+  }
+}
