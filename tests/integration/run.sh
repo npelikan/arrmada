@@ -41,4 +41,8 @@ echo "=== Phase 6: Verify Prowlarr application connections ==="
 "${SCRIPT_DIR}/test-prowlarr-apps.sh"
 
 echo ""
+echo "=== Phase 7: Verify download client sync ==="
+"${SCRIPT_DIR}/test-download-clients.sh"
+
+echo ""
 echo "=== All integration tests passed ==="
