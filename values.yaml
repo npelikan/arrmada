@@ -411,28 +411,28 @@ recyclarr:
   ## Service URLs are auto-populated from the release name.
   ## API keys are injected via !env_var from the chart's Secret.
   config:
-    ## Sonarr instances to sync.
+    ## Sonarr instance to sync. A single object (not a list) — the chart
+    ## manages exactly one Sonarr deployment at the internal cluster URL.
     ## Field names use snake_case to mirror the recyclarr.yml format.
-    sonarr: []
-    # - instance_name: main         # Used as the YAML key in recyclarr.yml
-    #   quality_definition:
-    #     type: series              # anime or series
-    #   quality_profiles:
-    #     - name: HD-1080p
-    #   custom_formats:
-    #     - trash_ids:
-    #         - 3a3ff47579026a9e4b651ef28c46b981   # DoVi
-    #       assign_scores_to:
-    #         - name: HD-1080p
-    #           score: 0
-    #   delete_old_custom_formats: false
+    ## The generated instance key in recyclarr.yml is always "main".
+    sonarr: {}
+    # quality_definition:
+    #   type: series              # anime or series
+    # quality_profiles:
+    #   - name: HD-1080p
+    # custom_formats:
+    #   - trash_ids:
+    #       - 3a3ff47579026a9e4b651ef28c46b981   # DoVi
+    #     assign_scores_to:
+    #       - name: HD-1080p
+    #         score: 0
+    # delete_old_custom_formats: false
 
-    ## Radarr instances to sync.
-    radarr: []
-    # - instance_name: main
-    #   quality_definition:
-    #     type: movie
-    #   quality_profiles:
-    #     - name: HD-1080p
-    #   custom_formats: []
-    #   delete_old_custom_formats: false
+    ## Radarr instance to sync. Same single-object format as sonarr above.
+    radarr: {}
+    # quality_definition:
+    #   type: movie
+    # quality_profiles:
+    #   - name: HD-1080p
+    # custom_formats: []
+    # delete_old_custom_formats: false

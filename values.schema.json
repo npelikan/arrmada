@@ -97,8 +97,8 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "sonarr": { "type": "array" },
-            "radarr": { "type": "array" }
+            "sonarr": { "type": "object" },
+            "radarr": { "type": "object" }
           }
         }
       }

@@ -232,55 +232,57 @@ Service URLs are auto-populated; API keys use !env_var so they are not stored
 in the ConfigMap in plaintext.
 
 Note: the recyclarr.config.sonarr/radarr values use snake_case field names
-to directly mirror the recyclarr.yml format (instance_name, quality_definition,
+to directly mirror the recyclarr.yml format (quality_definition,
 quality_profiles, custom_formats, delete_old_custom_formats).
+
+Each of recyclarr.config.sonarr and recyclarr.config.radarr is a single
+instance object (not a list). The instance key in the generated YAML is
+always "main" since each service has exactly one internal endpoint.
 */}}
 {{- define "arrmada.recyclarrConfig" -}}
 {{- $root := . -}}
 {{- if $root.Values.recyclarr.config.sonarr -}}
+{{- $sonarr := $root.Values.recyclarr.config.sonarr -}}
 sonarr:
-{{- range $root.Values.recyclarr.config.sonarr }}
-  {{ .instance_name }}:
+  main:
     base_url: {{ include "arrmada.sonarrUrl" $root }}
     api_key: !env_var SONARR_API_KEY
-    {{- if .quality_definition }}
+    {{- if $sonarr.quality_definition }}
     quality_definition:
-{{ .quality_definition | toYaml | indent 6 -}}
+{{ $sonarr.quality_definition | toYaml | indent 6 -}}
     {{- end }}
-    {{- if .quality_profiles }}
+    {{- if $sonarr.quality_profiles }}
     quality_profiles:
-{{ .quality_profiles | toYaml | indent 4 -}}
+{{ $sonarr.quality_profiles | toYaml | indent 6 -}}
     {{- end }}
-    {{- if .custom_formats }}
+    {{- if $sonarr.custom_formats }}
     custom_formats:
-{{ .custom_formats | toYaml | indent 4 -}}
+{{ $sonarr.custom_formats | toYaml | indent 6 -}}
     {{- end }}
-    {{- if .delete_old_custom_formats }}
-    delete_old_custom_formats: {{ .delete_old_custom_formats }}
+    {{- if hasKey $sonarr "delete_old_custom_formats" }}
+    delete_old_custom_formats: {{ $sonarr.delete_old_custom_formats }}
     {{- end }}
-{{- end }}
 {{- end }}
 {{- if $root.Values.recyclarr.config.radarr }}
+{{- $radarr := $root.Values.recyclarr.config.radarr -}}
 radarr:
-{{- range $root.Values.recyclarr.config.radarr }}
-  {{ .instance_name }}:
+  main:
     base_url: {{ include "arrmada.radarrUrl" $root }}
     api_key: !env_var RADARR_API_KEY
-    {{- if .quality_definition }}
+    {{- if $radarr.quality_definition }}
     quality_definition:
-{{ .quality_definition | toYaml | indent 6 -}}
+{{ $radarr.quality_definition | toYaml | indent 6 -}}
     {{- end }}
-    {{- if .quality_profiles }}
+    {{- if $radarr.quality_profiles }}
     quality_profiles:
-{{ .quality_profiles | toYaml | indent 4 -}}
+{{ $radarr.quality_profiles | toYaml | indent 6 -}}
     {{- end }}
-    {{- if .custom_formats }}
+    {{- if $radarr.custom_formats }}
     custom_formats:
-{{ .custom_formats | toYaml | indent 4 -}}
+{{ $radarr.custom_formats | toYaml | indent 6 -}}
     {{- end }}
-    {{- if .delete_old_custom_formats }}
-    delete_old_custom_formats: {{ .delete_old_custom_formats }}
+    {{- if hasKey $radarr "delete_old_custom_formats" }}
+    delete_old_custom_formats: {{ $radarr.delete_old_custom_formats }}
     {{- end }}
-{{- end }}
 {{- end }}
 {{- end }}
