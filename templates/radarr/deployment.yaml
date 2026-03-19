@@ -113,9 +113,11 @@ spec:
         - name: {{ .name }}
           {{- if .emptyDir }}
           emptyDir: {}
-          {{- else }}
+          {{- else if .claimName }}
           persistentVolumeClaim:
             claimName: {{ .claimName }}
+          {{- else }}
+          {{- fail (printf "radarr persistence.media entry '%s' must set either emptyDir or claimName" .name) }}
           {{- end }}
         {{- end }}
       {{- with .Values.radarr.nodeSelector }}

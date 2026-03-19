@@ -364,7 +364,7 @@ configSync:
     ## ${ENV_VAR} substitution in sensitive fields is performed by jq (built-in),
     ## so no additional tooling (envsubst/gettext) is required.
     repository: badouralix/curl-jq
-    tag: "alpine"
+    tag: "alpine-3.19"
   deleteUnmanaged: false
   timeout: 300
   ## Optional: cron schedule for periodic drift reconciliation (e.g. "0 */6 * * *")
