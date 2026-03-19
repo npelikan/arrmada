@@ -38,14 +38,25 @@ done
 
 echo "Fetching indexers from ${PROWLARR_URL}..." >&2
 
-# Fetch indexer list
-INDEXERS=$(curl -sf \
+# Fetch indexer list, capturing HTTP status code for actionable error messages
+HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" \
   -H "X-Api-Key: ${API_KEY}" \
   "${PROWLARR_URL}/api/v1/indexer")
+HTTP_STATUS=$(echo "${HTTP_RESPONSE}" | tail -n1)
+INDEXERS=$(echo "${HTTP_RESPONSE}" | head -n -1)
+
+if [ "${HTTP_STATUS}" != "200" ]; then
+  case "${HTTP_STATUS}" in
+    000) echo "Error: Could not connect to ${PROWLARR_URL}. Is Prowlarr running?" >&2 ;;
+    401) echo "Error: Unauthorized (HTTP 401). Check your API key." >&2 ;;
+    403) echo "Error: Forbidden (HTTP 403). Check your API key permissions." >&2 ;;
+    *)   echo "Error: HTTP ${HTTP_STATUS} from ${PROWLARR_URL}/api/v1/indexer" >&2 ;;
+  esac
+  exit 1
+fi
 
 if [ -z "${INDEXERS}" ]; then
-  echo "Error: Failed to fetch indexers from ${PROWLARR_URL}/api/v1/indexer" >&2
-  echo "Check that Prowlarr is running and the API key is correct." >&2
+  echo "Error: Empty response from ${PROWLARR_URL}/api/v1/indexer" >&2
   exit 1
 fi
 
@@ -56,8 +67,8 @@ echo "Found ${COUNT} indexer(s)" >&2
 # Keep all other fields including sensitive ones (apiKey, username, password)
 INDEXERS_CLEAN=$(echo "${INDEXERS}" | jq '[.[] | del(.id)]')
 
-# Base64-encode the JSON for the Secret
-INDEXERS_B64=$(echo "${INDEXERS_CLEAN}" | base64)
+# Base64-encode the JSON for the Secret (tr -d '\n' prevents line-wrapping on non-GNU base64)
+INDEXERS_B64=$(echo "${INDEXERS_CLEAN}" | base64 | tr -d '\n')
 
 # Output Kubernetes Secret YAML
 cat << EOF
