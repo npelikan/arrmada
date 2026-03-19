@@ -173,12 +173,21 @@ echo "config.xml written successfully"
 Auto-generate Prowlarr application entries for Sonarr and/or Radarr.
 Combines autoSonarr/autoRadarr generated entries with extra entries from values.
 Returns a JSON array suitable for use in the desired-state ConfigMap.
-API keys use ${SONARR_API_KEY}/${RADARR_API_KEY} so they are resolved by envsubst
-at runtime and never stored in plaintext in the ConfigMap.
+API keys use ${SONARR_API_KEY}/${RADARR_API_KEY} so they are resolved by jq's
+env object (via resolve_env_vars in sync-resource.sh) at runtime and never
+stored in plaintext in the ConfigMap.
+
+BREAKING CHANGE (v0.2.0): prowlarr.config.applications must be a dict
+(autoSonarr, autoRadarr, extra), not a list. Helm will fail with a type error
+if the old list format is supplied.
 */}}
 {{- define "arrmada.prowlarrAutoApplications" -}}
+{{- if kindIs "slice" .Values.prowlarr.config.applications -}}
+  {{- fail "prowlarr.config.applications must be a dict (autoSonarr/autoRadarr/extra), not a list. See values.yaml for the v0.2.0 migration guide." -}}
+{{- end -}}
 {{- $apps := list -}}
 {{- if .Values.prowlarr.config.applications.autoSonarr }}
+  {{- $sonarrCats := default (list 5000 5010 5020 5030 5040 5045 5050 5060 5070 5080) .Values.prowlarr.config.applications.sonarrSyncCategories -}}
   {{- $entry := dict
     "name" "Sonarr"
     "syncLevel" "fullSync"
@@ -189,12 +198,13 @@ at runtime and never stored in plaintext in the ConfigMap.
       (dict "name" "prowlarrUrl" "value" (include "arrmada.prowlarrUrl" .))
       (dict "name" "baseUrl" "value" (include "arrmada.sonarrUrl" .))
       (dict "name" "apiKey" "value" "${SONARR_API_KEY}")
-      (dict "name" "syncCategories" "value" (list 5000 5010 5020 5030 5040 5045 5050 5060 5070 5080))
+      (dict "name" "syncCategories" "value" $sonarrCats)
     )
   -}}
   {{- $apps = append $apps $entry -}}
 {{- end -}}
 {{- if .Values.prowlarr.config.applications.autoRadarr }}
+  {{- $radarrCats := default (list 2000 2010 2020 2030 2040 2045 2050 2060 2070 2080) .Values.prowlarr.config.applications.radarrSyncCategories -}}
   {{- $entry := dict
     "name" "Radarr"
     "syncLevel" "fullSync"
@@ -205,7 +215,7 @@ at runtime and never stored in plaintext in the ConfigMap.
       (dict "name" "prowlarrUrl" "value" (include "arrmada.prowlarrUrl" .))
       (dict "name" "baseUrl" "value" (include "arrmada.radarrUrl" .))
       (dict "name" "apiKey" "value" "${RADARR_API_KEY}")
-      (dict "name" "syncCategories" "value" (list 2000 2010 2020 2030 2040 2045 2050 2060 2070 2080))
+      (dict "name" "syncCategories" "value" $radarrCats)
     )
   -}}
   {{- $apps = append $apps $entry -}}

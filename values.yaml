@@ -314,9 +314,19 @@ prowlarr:
     ## autoSonarr/autoRadarr auto-generate application entries using release-local URLs.
     ## The auto-generated entries use ${SONARR_API_KEY}/${RADARR_API_KEY} env vars
     ## so API keys are not stored in plaintext in the ConfigMap.
+    ##
+    ## BREAKING CHANGE (v0.2.0): This field changed from a flat list to a dict.
+    ## If upgrading from v0.1.x and you had prowlarr.config.applications set as a
+    ## list, migrate to the dict format shown below.
     applications:
       autoSonarr: true
       autoRadarr: true
+      ## Prowlarr sync category IDs for the auto-generated Sonarr entry.
+      ## Defaults match standard TV categories. Override to restrict sync scope.
+      sonarrSyncCategories: [5000, 5010, 5020, 5030, 5040, 5045, 5050, 5060, 5070, 5080]
+      ## Prowlarr sync category IDs for the auto-generated Radarr entry.
+      ## Defaults match standard Movie categories.
+      radarrSyncCategories: [2000, 2010, 2020, 2030, 2040, 2045, 2050, 2060, 2070, 2080]
       ## Additional application entries (any Prowlarr-supported app).
       extra: []
       # - name: "Sonarr-4K"

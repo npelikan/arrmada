@@ -300,6 +300,16 @@
               "properties": {
                 "autoSonarr": { "type": "boolean" },
                 "autoRadarr": { "type": "boolean" },
+                "sonarrSyncCategories": {
+                  "type": "array",
+                  "items": { "type": "integer" },
+                  "description": "Prowlarr category IDs synced to the auto-generated Sonarr application"
+                },
+                "radarrSyncCategories": {
+                  "type": "array",
+                  "items": { "type": "integer" },
+                  "description": "Prowlarr category IDs synced to the auto-generated Radarr application"
+                },
                 "extra":      { "type": "array" }
               }
             },

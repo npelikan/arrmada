@@ -2,7 +2,7 @@ apiVersion: v2
 name: arrmada
 description: Unified Helm chart for the *arr media automation stack (Sonarr, Radarr, Prowlarr) with fully declarative configuration
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "latest"
 keywords:
   - arr
