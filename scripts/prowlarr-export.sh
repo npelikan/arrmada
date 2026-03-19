@@ -39,11 +39,14 @@ done
 echo "Fetching indexers from ${PROWLARR_URL}..." >&2
 
 # Fetch indexer list, capturing HTTP status code for actionable error messages
+# || true prevents set -e from terminating the script on connection failure,
+# allowing the 000 status code check below to produce an actionable error message.
 HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" \
   -H "X-Api-Key: ${API_KEY}" \
-  "${PROWLARR_URL}/api/v1/indexer")
+  "${PROWLARR_URL}/api/v1/indexer" || true)
 HTTP_STATUS=$(echo "${HTTP_RESPONSE}" | tail -n1)
-INDEXERS=$(echo "${HTTP_RESPONSE}" | head -n -1)
+# Use sed '$d' instead of head -n -1 for POSIX portability (macOS/BSD compatibility)
+INDEXERS=$(echo "${HTTP_RESPONSE}" | sed '$d')
 
 if [ "${HTTP_STATUS}" != "200" ]; then
   case "${HTTP_STATUS}" in
