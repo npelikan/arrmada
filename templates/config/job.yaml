@@ -70,6 +70,10 @@ spec:
                 secretKeyRef:
                   name: {{ include "arrmada.secretName" . }}
                   key: prowlarr-api-key
+            {{- if .Values.prowlarr.config.indexers.existingSecret }}
+            - name: PROWLARR_INDEXERS_FILE
+              value: /indexers/{{ .Values.prowlarr.config.indexers.secretKey | default "indexers.json" }}
+            {{- end }}
 
           {{- with .Values.configSync.extraEnvFrom }}
           envFrom:
@@ -80,6 +84,11 @@ spec:
               mountPath: /scripts
             - name: desired-state
               mountPath: /desired-state
+            {{- if .Values.prowlarr.config.indexers.existingSecret }}
+            - name: prowlarr-indexers
+              mountPath: /indexers
+              readOnly: true
+            {{- end }}
 
       volumes:
         - name: scripts
@@ -89,4 +98,9 @@ spec:
         - name: desired-state
           configMap:
             name: {{ include "arrmada.fullname" . }}-desired-state
+        {{- if .Values.prowlarr.config.indexers.existingSecret }}
+        - name: prowlarr-indexers
+          secret:
+            secretName: {{ .Values.prowlarr.config.indexers.existingSecret }}
+        {{- end }}
 {{- end }}

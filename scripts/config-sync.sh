@@ -211,11 +211,22 @@ sync_service() {
         "${desired}" "name"
     fi
 
-    # Applications (Prowlarr→Sonarr/Radarr connections)
+    # Applications (Prowlarr→Sonarr/Radarr connections, may include auto-generated)
     desired=$(read_desired "${d}-applications.json")
     if [ "${desired}" != "[]" ]; then
       sync_resources "${url}" "${api_version}" "${api_key}" "applications" \
         "${desired}" "name"
+    fi
+
+    # Indexers (loaded from Secret volume, if configured)
+    if [ -n "${PROWLARR_INDEXERS_FILE:-}" ] && [ -f "${PROWLARR_INDEXERS_FILE}" ]; then
+      info "Syncing indexers from ${PROWLARR_INDEXERS_FILE}"
+      local indexers
+      indexers=$(read_desired "${PROWLARR_INDEXERS_FILE}")
+      if [ "${indexers}" != "[]" ]; then
+        sync_resources "${url}" "${api_version}" "${api_key}" "indexer" \
+          "${indexers}" "name"
+      fi
     fi
 
     # General settings (singleton)

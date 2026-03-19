@@ -157,3 +157,50 @@ cat > /config/config.xml << XMLEOF
 XMLEOF
 echo "config.xml written successfully"
 {{- end }}
+
+{{/*
+Auto-generate Prowlarr application entries for Sonarr and/or Radarr.
+Combines autoSonarr/autoRadarr generated entries with extra entries from values.
+Returns a JSON array suitable for use in the desired-state ConfigMap.
+API keys use ${SONARR_API_KEY}/${RADARR_API_KEY} so they are resolved by envsubst
+at runtime and never stored in plaintext in the ConfigMap.
+*/}}
+{{- define "arrmada.prowlarrAutoApplications" -}}
+{{- $apps := list -}}
+{{- if .Values.prowlarr.config.applications.autoSonarr }}
+  {{- $entry := dict
+    "name" "Sonarr"
+    "syncLevel" "fullSync"
+    "implementationName" "Sonarr"
+    "implementation" "Sonarr"
+    "configContract" "SonarrSettings"
+    "fields" (list
+      (dict "name" "prowlarrUrl" "value" (include "arrmada.prowlarrUrl" .))
+      (dict "name" "baseUrl" "value" (include "arrmada.sonarrUrl" .))
+      (dict "name" "apiKey" "value" "${SONARR_API_KEY}")
+      (dict "name" "syncCategories" "value" (list 5000 5010 5020 5030 5040 5045 5050 5060 5070 5080))
+    )
+  -}}
+  {{- $apps = append $apps $entry -}}
+{{- end -}}
+{{- if .Values.prowlarr.config.applications.autoRadarr }}
+  {{- $entry := dict
+    "name" "Radarr"
+    "syncLevel" "fullSync"
+    "implementationName" "Radarr"
+    "implementation" "Radarr"
+    "configContract" "RadarrSettings"
+    "fields" (list
+      (dict "name" "prowlarrUrl" "value" (include "arrmada.prowlarrUrl" .))
+      (dict "name" "baseUrl" "value" (include "arrmada.radarrUrl" .))
+      (dict "name" "apiKey" "value" "${RADARR_API_KEY}")
+      (dict "name" "syncCategories" "value" (list 2000 2010 2020 2030 2040 2045 2050 2060 2070 2080))
+    )
+  -}}
+  {{- $apps = append $apps $entry -}}
+{{- end -}}
+{{- range .Values.prowlarr.config.applications.extra -}}
+  {{- $apps = append $apps . -}}
+{{- end -}}
+{{- $apps | toJson -}}
+{{- end }}

@@ -75,7 +75,7 @@ data:
   prowlarr-notifications.json: |
     {{ .Values.prowlarr.config.notifications | default list | toJson }}
   prowlarr-applications.json: |
-    {{ .Values.prowlarr.config.applications | default list | toJson }}
+    {{ include "arrmada.prowlarrAutoApplications" . }}
   prowlarr-host.json: |
     {{ .Values.prowlarr.config.host | default dict | toJson }}
   prowlarr-ui.json: |
