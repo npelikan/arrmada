@@ -121,7 +121,8 @@ sonarr:
     # - path: /tv
 
     ## Quality definitions — override minSize/maxSize/preferredSize per quality tier.
-    ## Items are matched by title. Only the fields you specify are changed.
+    ## Items are matched by title. The specified fields are merged into the full
+    ## existing definition fetched from the API, so unspecified fields are preserved.
     qualityDefinitions: []
     # - title: Bluray-1080p
     #   minSize: 5
@@ -166,7 +167,9 @@ sonarr:
     #   tags: []
 
     ## Download clients — matched by name.
-    ## Use ${ENV_VAR} syntax for sensitive values (host, password, apiKey).
+    ## Use "${ENV_VAR}" (the entire field value) for sensitive values (host, password, apiKey).
+    ## Substitution is JSON-safe via jq; the env var value is injected as a proper JSON string.
+    ## Partial patterns like "prefix-${VAR}" are not supported — use a dedicated env var instead.
     ## Mount the secret via configSync.extraEnvFrom.
     downloadClients: []
     # - name: "qBittorrent"
@@ -348,9 +351,8 @@ configSync:
   image:
     ## Use an image with curl and jq pre-bundled. The default ships both tools
     ## so no runtime package installation (apk add) is required.
-    ## To also support ${ENV_VAR} substitution in sensitive fields, ensure the
-    ## image includes envsubst (gettext); otherwise substitution is skipped with
-    ## a warning.
+    ## ${ENV_VAR} substitution in sensitive fields is performed by jq (built-in),
+    ## so no additional tooling (envsubst/gettext) is required.
     repository: ghcr.io/nicholaswilde/curl-jq
     tag: "alpine-3.19.0"
   deleteUnmanaged: false

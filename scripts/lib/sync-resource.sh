@@ -150,7 +150,11 @@ sync_quality_definitions() {
       warn "  Quality definition '${title}' not found in current list, skipping"
     else
       info "  Updating qualitydefinition: ${title} (id=${existing_id})"
-      merged=$(echo "${item}" | jq --argjson id "${existing_id}" '. + {id: $id}')
+      # Merge desired fields INTO the full existing object so unspecified fields
+      # (e.g. preferredSize, quality sub-object) are preserved rather than dropped.
+      merged=$(echo "${current}" | jq \
+        --argjson id "${existing_id}" --argjson item "${item}" \
+        'map(select(.id == $id) | . + $item) | .[0]')
       api_put "${base_url}" "${api_version}" "${api_key}" "qualitydefinition" \
         "${existing_id}" "${merged}" \
         || warn "  Failed to update qualitydefinition: ${title}"
@@ -164,14 +168,21 @@ sync_quality_definitions() {
 
 # resolve_env_vars <json_string>
 #
-# Substitutes ${VAR} patterns in a JSON string using envsubst (from gettext).
-# If envsubst is unavailable, the string is returned unchanged with a warning.
+# Substitutes ${VAR} patterns found in JSON string values using jq's built-in
+# env object. This is JSON-aware: values are injected as proper JSON strings so
+# special characters (quotes, backslashes, newlines) cannot break the document.
+#
+# Pattern: any JSON string value equal to "${VAR_NAME}" is replaced with the
+# value of the environment variable VAR_NAME. Partial substitutions within a
+# larger string (e.g. "prefix-${VAR}-suffix") are not supported; use a
+# dedicated env var for the full field value in that case.
 resolve_env_vars() {
   local input="$1"
-  if command -v envsubst > /dev/null 2>&1; then
-    printf '%s' "${input}" | envsubst
-  else
-    warn "envsubst not available; ${ENV_VAR} patterns will not be resolved"
-    printf '%s' "${input}"
-  fi
+  printf '%s' "${input}" | jq 'walk(
+    if type == "string" and test("^\\$\\{[A-Za-z_][A-Za-z0-9_]*\\}$") then
+      ltrimstr("${") | rtrimstr("}") | . as $var | env[$var] // .
+    else
+      .
+    end
+  )'
 }
