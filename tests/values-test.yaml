@@ -40,6 +40,10 @@ sonarr:
       enabled: true
       storageClassName: local-path
       size: 1Gi
+    media:
+      - name: downloads-tv
+        mountPath: /downloads/tv
+        emptyDir: true
   config:
     rootFolders:
       - path: /downloads/tv
@@ -53,6 +57,10 @@ radarr:
       enabled: true
       storageClassName: local-path
       size: 1Gi
+    media:
+      - name: downloads-movies
+        mountPath: /downloads/movies
+        emptyDir: true
   config:
     rootFolders:
       - path: /downloads/movies

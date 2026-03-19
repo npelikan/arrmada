@@ -17,11 +17,8 @@ echo ""
 echo "=== Phase 1: Deploy PostgreSQL fixture ==="
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -n "${NAMESPACE}" -f "${TESTS_DIR}/fixtures/postgresql/"
-echo "Waiting for PostgreSQL pod to be ready..."
-kubectl wait -n "${NAMESPACE}" \
-  --for=condition=ready pod \
-  -l app=postgresql \
-  --timeout=120s
+echo "Waiting for PostgreSQL to be ready..."
+kubectl rollout status deployment/postgresql -n "${NAMESPACE}" --timeout=120s
 
 echo ""
 echo "=== Phase 2: Install arrmada chart ==="

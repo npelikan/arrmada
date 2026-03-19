@@ -217,11 +217,12 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["name", "claimName", "mountPath"],
+            "required": ["name", "mountPath"],
             "properties": {
               "name":      { "type": "string", "minLength": 1 },
               "claimName": { "type": "string", "minLength": 1 },
-              "mountPath": { "type": "string", "minLength": 1 }
+              "mountPath": { "type": "string", "minLength": 1 },
+              "emptyDir":  { "type": "boolean" }
             }
           }
         }

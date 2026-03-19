@@ -52,7 +52,7 @@ sleep 3
 
 echo "Querying Prowlarr /api/v1/applications..."
 apps=$(curl -s -H "X-Api-Key: ${PROWLARR_KEY}" \
-  "http://localhost:39696/api/v1/application" || echo "[]")
+  "http://localhost:39696/api/v1/applications" || echo "[]")
 
 check_contains "Prowlarr has Sonarr application connection" "${apps}" "sonarr"
 check_contains "Prowlarr has Radarr application connection" "${apps}" "radarr"

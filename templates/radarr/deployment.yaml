@@ -111,8 +111,12 @@ spec:
             defaultMode: 0755
         {{- range .Values.radarr.persistence.media }}
         - name: {{ .name }}
+          {{- if .emptyDir }}
+          emptyDir: {}
+          {{- else }}
           persistentVolumeClaim:
             claimName: {{ .claimName }}
+          {{- end }}
         {{- end }}
       {{- with .Values.radarr.nodeSelector }}
       nodeSelector:

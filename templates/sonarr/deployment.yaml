@@ -111,8 +111,12 @@ spec:
             defaultMode: 0755
         {{- range .Values.sonarr.persistence.media }}
         - name: {{ .name }}
+          {{- if .emptyDir }}
+          emptyDir: {}
+          {{- else }}
           persistentVolumeClaim:
             claimName: {{ .claimName }}
+          {{- end }}
         {{- end }}
       {{- with .Values.sonarr.nodeSelector }}
       nodeSelector:
