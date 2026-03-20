@@ -45,7 +45,7 @@ check() {
 
 check_contains() {
   local desc="$1" haystack="$2" needle="$3"
-  if echo "${haystack}" | grep -qi "${needle}"; then
+  if grep -qi "${needle}" <<< "${haystack}"; then
     echo "  PASS: ${desc}"
     PASS=$((PASS + 1))
   else
@@ -62,7 +62,7 @@ check_not_exists() {
   local result
   result=$(kubectl get "${resource}" "${name}" \
     --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" 2>&1) || true
-  if echo "${result}" | grep -q "NotFound\|not found"; then
+  if grep -q "NotFound\|not found" <<< "${result}"; then
     echo "  PASS: ${desc}"
     PASS=$((PASS + 1))
   else
@@ -88,7 +88,7 @@ wait_for_absent() {
   while [[ $elapsed -lt $timeout ]]; do
     result=$(kubectl get "${resource}" "${name}" \
       --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" 2>&1) || true
-    if echo "${result}" | grep -q "NotFound\|not found"; then
+    if grep -q "NotFound\|not found" <<< "${result}"; then
       return 0
     fi
     sleep 5
@@ -97,7 +97,7 @@ wait_for_absent() {
   # One final check after timeout
   result=$(kubectl get "${resource}" "${name}" \
     --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" 2>&1) || true
-  echo "${result}" | grep -q "NotFound\|not found"
+  grep -q "NotFound\|not found" <<< "${result}"
 }
 
 get_api_key() {
@@ -226,10 +226,10 @@ check "Recyclarr Job had no failed attempts" \
 logs=$(kubectl logs "job/${RELEASE}-recyclarr-manual" \
   --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" 2>/dev/null || echo "")
 # Recyclarr exits 0 even with no instances; verify absence of fatal errors
-if echo "${logs}" | grep -qi "exception\|fatal"; then
+if grep -qi "exception\|fatal" <<< "${logs}"; then
   echo "  FAIL: Recyclarr logs contain exception or fatal error"
   echo "  --- logs ---"
-  echo "${logs}" | tail -20
+  tail -20 <<< "${logs}"
   FAIL=$((FAIL + 1))
 else
   echo "  PASS: Recyclarr logs contain no exceptions or fatal errors"
@@ -289,7 +289,7 @@ check_contains "Sonarr quality definitions are non-empty after sync" \
 
 # TRaSH series profile sets specific sizes — verify at least one definition has
 # a non-zero minSize (default Sonarr minSize is 0 for many qualities)
-non_zero=$(echo "${sonarr_qdefs}" | grep -c '"minSize":[^0]' || true)
+non_zero=$(grep -c '"minSize":[^0]' <<< "${sonarr_qdefs}" || true)
 check "Sonarr quality definitions have TRaSH-set min sizes" \
   test "${non_zero}" -gt 0
 
@@ -303,7 +303,7 @@ radarr_qdefs=$(curl -sf -H "X-Api-Key: ${RADARR_KEY}" \
 check_contains "Radarr quality definitions are non-empty after sync" \
   "${radarr_qdefs}" "title"
 
-non_zero=$(echo "${radarr_qdefs}" | grep -c '"minSize":[^0]' || true)
+non_zero=$(grep -c '"minSize":[^0]' <<< "${radarr_qdefs}" || true)
 check "Radarr quality definitions have TRaSH-set min sizes" \
   test "${non_zero}" -gt 0
 

@@ -26,7 +26,7 @@ check_contains() {
   local desc="$1"
   local haystack="$2"
   local needle="$3"
-  if echo "${haystack}" | grep -qi "${needle}"; then
+  if grep -qi "${needle}" <<< "${haystack}"; then
     echo "  PASS: ${desc}"
     PASS=$((PASS + 1))
   else

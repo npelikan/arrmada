@@ -39,7 +39,7 @@ get_api_key() {
 
 check_contains() {
   local desc="$1" haystack="$2" needle="$3"
-  if echo "${haystack}" | grep -qi "${needle}"; then
+  if grep -qi "${needle}" <<< "${haystack}"; then
     echo "  PASS: ${desc}"
     PASS=$((PASS + 1))
   else
