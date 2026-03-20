@@ -56,8 +56,13 @@ check_contains() {
 
 check_not_exists() {
   local desc="$1" resource="$2" name="$3"
-  if kubectl get "${resource}" "${name}" \
-    --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" 2>&1 | grep -q "NotFound\|not found"; then
+  # Capture output before grepping: with set -o pipefail, a pipeline where kubectl
+  # exits non-zero (NotFound) would make the whole if-condition false even if grep
+  # finds the pattern. Capturing first avoids the pipefail pitfall.
+  local result
+  result=$(kubectl get "${resource}" "${name}" \
+    --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" 2>&1) || true
+  if echo "${result}" | grep -q "NotFound\|not found"; then
     echo "  PASS: ${desc}"
     PASS=$((PASS + 1))
   else
@@ -73,6 +78,26 @@ start_pf() {
     -n "${NAMESPACE}" \
     "svc/${RELEASE}-${svc}" "${local_port}:${port}" &
   PF_PIDS+=("$!")
+}
+
+# Poll until a resource is absent (handles GC delay without depending on DeletionTimestamp).
+# Uses variable capture to avoid set -o pipefail breaking the grep-on-kubectl pattern.
+wait_for_absent() {
+  local resource="$1" name="$2" timeout="${3:-180}"
+  local elapsed=0 result
+  while [[ $elapsed -lt $timeout ]]; do
+    result=$(kubectl get "${resource}" "${name}" \
+      --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" 2>&1) || true
+    if echo "${result}" | grep -q "NotFound\|not found"; then
+      return 0
+    fi
+    sleep 5
+    elapsed=$((elapsed + 5))
+  done
+  # One final check after timeout
+  result=$(kubectl get "${resource}" "${name}" \
+    --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" 2>&1) || true
+  echo "${result}" | grep -q "NotFound\|not found"
 }
 
 get_api_key() {
@@ -113,15 +138,20 @@ helm upgrade "${RELEASE}" "${CHART_DIR}" \
   --wait \
   --timeout 120s
 
-# Helm's cascade deletion of CronJobs (which manage child Jobs) can take
-# ~2 minutes for the GC cycle to process. Wait before asserting absence.
-echo "Waiting for any previous recyclarr resources to be fully deleted..."
+# Helm's GC cycle can take several minutes on slower clusters (e.g. Rancher Desktop).
+# Explicitly delete the resources (--ignore-not-found is a no-op if already gone)
+# so they get a DeletionTimestamp; then kubectl wait --for=delete reliably blocks.
+echo "Ensuring recyclarr resources are fully removed before absence checks..."
+kubectl delete cronjob "${RELEASE}-recyclarr" \
+  --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" --ignore-not-found 2>/dev/null || true
+kubectl delete configmap "${RELEASE}-recyclarr-config" \
+  --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" --ignore-not-found 2>/dev/null || true
 kubectl wait cronjob "${RELEASE}-recyclarr" \
   --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
-  --for=delete --timeout=180s 2>/dev/null || true
+  --for=delete --timeout=60s 2>/dev/null || true
 kubectl wait configmap "${RELEASE}-recyclarr-config" \
   --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
-  --for=delete --timeout=180s 2>/dev/null || true
+  --for=delete --timeout=60s 2>/dev/null || true
 
 check_not_exists "CronJob absent when Recyclarr disabled" \
   cronjob "${RELEASE}-recyclarr"
@@ -344,13 +374,19 @@ helm upgrade "${RELEASE}" "${CHART_DIR}" \
   --wait \
   --timeout 120s
 
-# Wait for Helm's delete requests to be fully processed by the GC
+# Force deletion to get a DeletionTimestamp (no-op if Helm already deleted them)
+# then wait reliably. Needed because k3s/Rancher Desktop GC can take >3 minutes.
+echo "Ensuring recyclarr resources are removed..."
+kubectl delete cronjob "${RELEASE}-recyclarr" \
+  --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" --ignore-not-found 2>/dev/null || true
+kubectl delete configmap "${RELEASE}-recyclarr-config" \
+  --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" --ignore-not-found 2>/dev/null || true
 kubectl wait cronjob "${RELEASE}-recyclarr" \
   --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
-  --for=delete --timeout=180s 2>/dev/null || true
+  --for=delete --timeout=60s 2>/dev/null || true
 kubectl wait configmap "${RELEASE}-recyclarr-config" \
   --kubeconfig "${KUBECONFIG}" -n "${NAMESPACE}" \
-  --for=delete --timeout=180s 2>/dev/null || true
+  --for=delete --timeout=60s 2>/dev/null || true
 
 check_not_exists "CronJob removed when Recyclarr disabled" \
   cronjob "${RELEASE}-recyclarr"
