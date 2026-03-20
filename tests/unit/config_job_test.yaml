@@ -1,0 +1,162 @@
+suite: config sync job
+templates:
+  - config/job.yaml
+values:
+  - ../values-test.yaml
+tests:
+  - it: should create Job when configSync is enabled
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Job
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-arrmada-config-sync
+
+  - it: should not create Job when configSync is disabled
+    set:
+      configSync.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should have post-install post-upgrade hook annotation
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-install,post-upgrade
+
+  - it: should have before-hook-creation delete policy
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: before-hook-creation
+
+  - it: should have OnFailure restart policy
+    asserts:
+      - equal:
+          path: spec.template.spec.restartPolicy
+          value: OnFailure
+
+  - it: should set SONARR_ENABLED env var
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SONARR_ENABLED
+            value: "true"
+
+  - it: should set SONARR_API_VERSION env var
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SONARR_API_VERSION
+            value: "v3"
+
+  - it: should set RADARR_API_VERSION env var
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RADARR_API_VERSION
+            value: "v3"
+
+  - it: should set PROWLARR_API_VERSION env var
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PROWLARR_API_VERSION
+            value: "v1"
+
+  - it: should set DELETE_UNMANAGED env var from values
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: DELETE_UNMANAGED
+            value: "false"
+
+  - it: should mount scripts volume
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: scripts
+            mountPath: /scripts
+
+  - it: should mount desired-state volume
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: desired-state
+            mountPath: /desired-state
+
+  - it: should not mount prowlarr-indexers volume when no existingSecret
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: prowlarr-indexers
+          any: true
+
+  - it: should mount prowlarr-indexers volume when existingSecret is set
+    set:
+      prowlarr.config.indexers.existingSecret: prowlarr-indexers
+      prowlarr.config.indexers.secretKey: indexers.json
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: prowlarr-indexers
+            mountPath: /indexers
+            readOnly: true
+
+  - it: should set PROWLARR_INDEXERS_FILE when existingSecret is set
+    set:
+      prowlarr.config.indexers.existingSecret: prowlarr-indexers
+      prowlarr.config.indexers.secretKey: indexers.json
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PROWLARR_INDEXERS_FILE
+            value: /indexers/indexers.json
+
+  - it: should set RTORRENT_RPC_USERNAME from inline value when rtorrent enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RTORRENT_RPC_USERNAME
+            value: testuser
+
+  - it: should set RTORRENT_RPC_PASSWORD from inline value when rtorrent enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RTORRENT_RPC_PASSWORD
+            value: abcitseasyas123
+
+  - it: should use secretKeyRef for RPC username when existingSecret is set
+    set:
+      rtorrent.rpcAuth.existingSecret: my-rpc-secret
+      rtorrent.rpcAuth.secretUsernameKey: username
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[?(@.name == "RTORRENT_RPC_USERNAME")].valueFrom.secretKeyRef.name
+          value: my-rpc-secret
+
+  - it: should not set RPC env vars when rtorrent is disabled
+    set:
+      rtorrent.enabled: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RTORRENT_RPC_USERNAME
+          any: true

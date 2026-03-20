@@ -1,0 +1,84 @@
+{{- if .Values.configSync.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "arrmada.fullname" . }}-desired-state
+  labels:
+    {{- include "arrmada.labels" . | nindent 4 }}
+data:
+  {{- /* ── Sonarr ──────────────────────────────────────────────────────── */}}
+  {{- if .Values.sonarr.enabled }}
+  sonarr-tags.json: |
+    {{ .Values.sonarr.config.tags | default list | toJson }}
+  sonarr-rootfolders.json: |
+    {{ include "arrmada.sonarrRootFolders" . }}
+  sonarr-qualitydefinitions.json: |
+    {{ .Values.sonarr.config.qualityDefinitions | default list | toJson }}
+  sonarr-customformats.json: |
+    {{ .Values.sonarr.config.customFormats | default list | toJson }}
+  sonarr-qualityprofiles.json: |
+    {{ .Values.sonarr.config.qualityProfiles | default list | toJson }}
+  sonarr-delayprofiles.json: |
+    {{ .Values.sonarr.config.delayProfiles | default list | toJson }}
+  sonarr-downloadclients.json: |
+    {{ $sonarrClients := .Values.sonarr.config.downloadClients | default list }}{{ if and .Values.rtorrent.enabled .Values.sonarr.enabled }}{{ $sonarrClients = append $sonarrClients (include "arrmada.rtorrentDownloadClientSonarr" . | fromJson) }}{{ end }}{{ $sonarrClients | toJson }}
+  sonarr-notifications.json: |
+    {{ .Values.sonarr.config.notifications | default list | toJson }}
+  sonarr-importlists.json: |
+    {{ .Values.sonarr.config.importLists | default list | toJson }}
+  sonarr-naming.json: |
+    {{ .Values.sonarr.config.naming | default dict | toJson }}
+  sonarr-mediamanagement.json: |
+    {{ .Values.sonarr.config.mediaManagement | default dict | toJson }}
+  sonarr-host.json: |
+    {{ .Values.sonarr.config.host | default dict | toJson }}
+  sonarr-ui.json: |
+    {{ .Values.sonarr.config.ui | default dict | toJson }}
+  {{- end }}
+
+  {{- /* ── Radarr ──────────────────────────────────────────────────────── */}}
+  {{- if .Values.radarr.enabled }}
+  radarr-tags.json: |
+    {{ .Values.radarr.config.tags | default list | toJson }}
+  radarr-rootfolders.json: |
+    {{ include "arrmada.radarrRootFolders" . }}
+  radarr-qualitydefinitions.json: |
+    {{ .Values.radarr.config.qualityDefinitions | default list | toJson }}
+  radarr-customformats.json: |
+    {{ .Values.radarr.config.customFormats | default list | toJson }}
+  radarr-qualityprofiles.json: |
+    {{ .Values.radarr.config.qualityProfiles | default list | toJson }}
+  radarr-delayprofiles.json: |
+    {{ .Values.radarr.config.delayProfiles | default list | toJson }}
+  radarr-downloadclients.json: |
+    {{ $radarrClients := .Values.radarr.config.downloadClients | default list }}{{ if and .Values.rtorrent.enabled .Values.radarr.enabled }}{{ $radarrClients = append $radarrClients (include "arrmada.rtorrentDownloadClientRadarr" . | fromJson) }}{{ end }}{{ $radarrClients | toJson }}
+  radarr-notifications.json: |
+    {{ .Values.radarr.config.notifications | default list | toJson }}
+  radarr-importlists.json: |
+    {{ .Values.radarr.config.importLists | default list | toJson }}
+  radarr-naming.json: |
+    {{ .Values.radarr.config.naming | default dict | toJson }}
+  radarr-mediamanagement.json: |
+    {{ .Values.radarr.config.mediaManagement | default dict | toJson }}
+  radarr-host.json: |
+    {{ .Values.radarr.config.host | default dict | toJson }}
+  radarr-ui.json: |
+    {{ .Values.radarr.config.ui | default dict | toJson }}
+  {{- end }}
+
+  {{- /* ── Prowlarr ────────────────────────────────────────────────────── */}}
+  {{- if .Values.prowlarr.enabled }}
+  prowlarr-tags.json: |
+    {{ .Values.prowlarr.config.tags | default list | toJson }}
+  prowlarr-downloadclients.json: |
+    {{ .Values.prowlarr.config.downloadClients | default list | toJson }}
+  prowlarr-notifications.json: |
+    {{ .Values.prowlarr.config.notifications | default list | toJson }}
+  prowlarr-applications.json: |
+    {{ include "arrmada.prowlarrAutoApplications" . }}
+  prowlarr-host.json: |
+    {{ .Values.prowlarr.config.host | default dict | toJson }}
+  prowlarr-ui.json: |
+    {{ .Values.prowlarr.config.ui | default dict | toJson }}
+  {{- end }}
+{{- end }}

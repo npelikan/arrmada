@@ -1,0 +1,20 @@
+{{- if and .Values.recyclarr.enabled .Values.recyclarr.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "arrmada.fullname" . }}-recyclarr-cache
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    {{- include "arrmada.labels" . | nindent 4 }}
+    app.kubernetes.io/component: recyclarr
+spec:
+  accessModes:
+    - {{ .Values.recyclarr.persistence.accessMode }}
+  {{- if .Values.recyclarr.persistence.storageClassName }}
+  storageClassName: {{ .Values.recyclarr.persistence.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.recyclarr.persistence.size | quote }}
+{{- end }}

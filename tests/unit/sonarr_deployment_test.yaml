@@ -1,0 +1,154 @@
+suite: sonarr deployment
+templates:
+  - sonarr/deployment.yaml
+values:
+  - ../values-test.yaml
+tests:
+  - it: should create deployment when enabled
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-arrmada-sonarr
+
+  - it: should not create deployment when disabled
+    set:
+      sonarr.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should use correct container image
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ghcr\.io/hotio/sonarr
+
+  - it: should use Recreate update strategy
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: should have init container for config.xml
+    asserts:
+      - isNotEmpty:
+          path: spec.template.spec.initContainers
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: init-config
+
+  - it: should mount config volume
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+          any: true
+
+  - it: should mount init-scripts volume from configmap
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: init-scripts
+          any: true
+
+  - it: should expose port 8989
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 8989
+
+  - it: should have readiness probe on /ping
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /ping
+
+  - it: should have liveness probe on /ping
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /ping
+
+  - it: should set PUID and PGID env vars
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PUID
+            value: "1000"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGID
+            value: "1000"
+
+  - it: should include global media volumes
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: media-data
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-arrmada-media-data
+          any: true
+
+  - it: should mount global media volumes in container
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: media-data
+            mountPath: /data
+          any: true
+
+  - it: should create root-folders init container when tvDir set
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers
+          content:
+            name: create-root-folders
+          any: true
+
+  - it: should use existingClaim when specified for media volume
+    set:
+      global.media:
+        - name: nas
+          mountPath: /nas
+          existingClaim: my-existing-pvc
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: media-nas
+            persistentVolumeClaim:
+              claimName: my-existing-pvc
+          any: true
+
+  - it: should use PVC for config when persistence enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-arrmada-sonarr-config
+
+  - it: should use emptyDir for config when persistence disabled
+    set:
+      sonarr.persistence.config.enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            emptyDir: {}
+
+  - it: should set component label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: sonarr

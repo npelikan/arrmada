@@ -1,0 +1,162 @@
+suite: recyclarr configmap
+templates:
+  - recyclarr/configmap.yaml
+values:
+  - ../values-test.yaml
+
+tests:
+  - it: should not create ConfigMap when recyclarr is disabled
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should create ConfigMap when recyclarr is enabled
+    set:
+      recyclarr.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-arrmada-recyclarr-config
+
+  - it: should have recyclarr component label
+    set:
+      recyclarr.enabled: true
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: recyclarr
+
+  - it: should contain recyclarr.yml data key
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.sonarr:
+        quality_definition:
+          type: series
+    asserts:
+      - isNotEmpty:
+          path: data["recyclarr.yml"]
+
+  - it: should render empty config when sonarr and radarr config objects are empty
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.sonarr: {}
+      recyclarr.config.radarr: {}
+    asserts:
+      - equal:
+          path: data["recyclarr.yml"]
+          value: |
+
+  - it: should render sonarr section with instance key sonarr
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.sonarr:
+        quality_definition:
+          type: series
+    asserts:
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "sonarr:"
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "  sonarr:"
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "    api_key: !env_var SONARR_API_KEY"
+
+  - it: should render radarr section with instance key radarr
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.radarr:
+        quality_definition:
+          type: movie
+    asserts:
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "radarr:"
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "  radarr:"
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "    api_key: !env_var RADARR_API_KEY"
+
+  - it: should not render sonarr section when sonarr config is empty object
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.sonarr: {}
+      recyclarr.config.radarr:
+        quality_definition:
+          type: movie
+    asserts:
+      - notMatchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "sonarr:"
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "radarr:"
+
+  - it: should not render radarr section when radarr config is empty object
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.sonarr:
+        quality_definition:
+          type: series
+      recyclarr.config.radarr: {}
+    asserts:
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "sonarr:"
+      - notMatchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "radarr:"
+
+  - it: should include delete_old_custom_formats when set to true in sonarr config
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.sonarr:
+        delete_old_custom_formats: true
+    asserts:
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "    delete_old_custom_formats: true"
+
+  - it: should include delete_old_custom_formats when set to false in sonarr config
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.sonarr:
+        delete_old_custom_formats: false
+    asserts:
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "    delete_old_custom_formats: false"
+
+  - it: should include delete_old_custom_formats when set to true in radarr config
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.radarr:
+        delete_old_custom_formats: true
+    asserts:
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "    delete_old_custom_formats: true"
+
+  - it: should render both sonarr and radarr sections when both configs are non-empty
+    set:
+      recyclarr.enabled: true
+      recyclarr.config.sonarr:
+        quality_definition:
+          type: series
+      recyclarr.config.radarr:
+        quality_definition:
+          type: movie
+    asserts:
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "sonarr:"
+      - matchRegex:
+          path: data["recyclarr.yml"]
+          pattern: "radarr:"

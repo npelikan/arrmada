@@ -1,0 +1,20 @@
+apiVersion: v2
+name: arrmada
+description: Unified Helm chart for the *arr media automation stack (Sonarr, Radarr, Prowlarr, rtorrent) with fully declarative configuration
+type: application
+version: 0.2.0
+appVersion: "latest"
+keywords:
+  - arr
+  - sonarr
+  - radarr
+  - prowlarr
+  - rtorrent
+  - media
+  - automation
+sources:
+  - https://github.com/Sonarr/Sonarr
+  - https://github.com/Radarr/Radarr
+  - https://github.com/Prowlarr/Prowlarr
+maintainers:
+  - name: arrmada

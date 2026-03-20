@@ -1,0 +1,43 @@
+{{- if .Values.rtorrent.enabled }}
+{{- range .Values.rtorrent.ingress }}
+{{- if .enabled }}
+{{- if not .hosts }}
+{{- fail (printf "rtorrent ingress entry '%s' has no hosts defined" (.name | default "<unnamed>")) }}
+{{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" $ "component" "rtorrent") }}-{{ required "Each rtorrent ingress entry must have a 'name' field" .name }}
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" $ "component" "rtorrent") | nindent 4 }}
+  {{- with .annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .className }}
+  ingressClassName: {{ .className | quote }}
+  {{- end }}
+  {{- with .tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ include "arrmada.componentName" (dict "root" $ "component" "rtorrent") }}
+                port:
+                  name: flood
+          {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

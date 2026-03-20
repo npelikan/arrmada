@@ -1,0 +1,11 @@
+{{- if .Values.radarr.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "radarr") }}-init
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "radarr") | nindent 4 }}
+data:
+  init-config.sh: |
+    {{- include "arrmada.initConfigScript" (dict "root" . "port" 7878 "pgEnabled" .Values.global.postgresql.radarr.enabled) | nindent 4 }}
+{{- end }}

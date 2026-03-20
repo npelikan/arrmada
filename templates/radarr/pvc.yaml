@@ -1,0 +1,17 @@
+{{- if and .Values.radarr.enabled .Values.radarr.persistence.config.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "radarr") }}-config
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "radarr") | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.radarr.persistence.config.accessMode }}
+  {{- if .Values.radarr.persistence.config.storageClassName }}
+  storageClassName: {{ .Values.radarr.persistence.config.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.radarr.persistence.config.size | quote }}
+{{- end }}

@@ -1,0 +1,155 @@
+{{- if .Values.rtorrent.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "rtorrent") }}
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "rtorrent") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "arrmada.componentSelectorLabels" (dict "root" . "component" "rtorrent") | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "arrmada.componentLabels" (dict "root" . "component" "rtorrent") | nindent 8 }}
+      {{- with .Values.rtorrent.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
+      {{- $hasDownloadDirs := include "arrmada.rtorrentHasDownloadDirs" . }}
+      {{- $hasRpcAuth := or .Values.rtorrent.rpcAuth.existingSecret .Values.rtorrent.rpcAuth.username }}
+      {{- if or $hasDownloadDirs $hasRpcAuth }}
+      initContainers:
+        {{- if $hasDownloadDirs }}
+        - name: create-download-dirs
+          image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              {{- range .Values.global.media }}
+              {{- if .downloadDir }}
+              mkdir -p {{ .downloadDir | quote }}
+              chown "${PUID}:${PGID}" {{ .downloadDir | quote }} 2>/dev/null || true
+              {{- end }}
+              {{- end }}
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+          volumeMounts:
+            {{- include "arrmada.globalMediaVolumeMounts" . | nindent 12 }}
+        {{- end }}
+        {{- if $hasRpcAuth }}
+        - name: write-rpc-credentials
+          image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              apk add --no-cache --quiet apache2-utils
+              mkdir -p /config/rpc2
+              htpasswd -Bbn "${RTORRENT_RPC_USERNAME}" "${RTORRENT_RPC_PASSWORD}" > /config/rpc2/basic_auth_credentials
+              chown -R "${PUID}:${PGID}" /config/rpc2
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+            - name: RTORRENT_RPC_USERNAME
+              {{- if .Values.rtorrent.rpcAuth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rtorrent.rpcAuth.existingSecret }}
+                  key: {{ .Values.rtorrent.rpcAuth.secretUsernameKey | default "username" }}
+              {{- else }}
+              value: {{ .Values.rtorrent.rpcAuth.username | quote }}
+              {{- end }}
+            - name: RTORRENT_RPC_PASSWORD
+              {{- if .Values.rtorrent.rpcAuth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rtorrent.rpcAuth.existingSecret }}
+                  key: {{ .Values.rtorrent.rpcAuth.secretPasswordKey | default "password" }}
+              {{- else }}
+              value: {{ .Values.rtorrent.rpcAuth.password | quote }}
+              {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: rtorrent
+          image: "{{ .Values.rtorrent.image.repository }}:{{ .Values.rtorrent.image.tag }}"
+          imagePullPolicy: {{ .Values.rtorrent.image.pullPolicy }}
+          ports:
+            - name: flood
+              containerPort: 3000
+              protocol: TCP
+            - name: rpc
+              containerPort: 5000
+              protocol: TCP
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+            - name: UMASK
+              value: {{ .Values.global.env.UMASK | quote }}
+            {{- with .Values.rtorrent.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: flood
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /
+              port: flood
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          {{- with .Values.rtorrent.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            {{- include "arrmada.globalMediaVolumeMounts" . | nindent 12 }}
+      volumes:
+        - name: config
+          {{- if .Values.rtorrent.persistence.config.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "arrmada.componentName" (dict "root" . "component" "rtorrent") }}-config
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- include "arrmada.globalMediaVolumes" . | nindent 8 }}
+      {{- with .Values.rtorrent.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.rtorrent.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.rtorrent.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

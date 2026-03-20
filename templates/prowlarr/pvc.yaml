@@ -1,0 +1,17 @@
+{{- if and .Values.prowlarr.enabled .Values.prowlarr.persistence.config.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "prowlarr") }}-config
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "prowlarr") | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.prowlarr.persistence.config.accessMode }}
+  {{- if .Values.prowlarr.persistence.config.storageClassName }}
+  storageClassName: {{ .Values.prowlarr.persistence.config.storageClassName | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.prowlarr.persistence.config.size | quote }}
+{{- end }}

@@ -1,0 +1,74 @@
+# Minimal values — deploy Sonarr, Radarr, Prowlarr, and rtorrent without config sync.
+# Provides working deployments backed by external PostgreSQL.
+# Config sync and Recyclarr are disabled.
+#
+# rtorrent (rflood) is disabled here because it requires RPC credentials
+# and shared media PVCs (global.media) to be useful. See values-full.yaml
+# for a complete rtorrent example.
+
+global:
+  env:
+    PUID: 1000
+    PGID: 1000
+
+  ## Replace with stable 32-character hex API keys.
+  ## Generate with: openssl rand -hex 16
+  apiKeys:
+    sonarr: ""    # e.g. a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
+    radarr: ""
+    prowlarr: ""
+
+  postgresql:
+    host: "postgres.media.svc.cluster.local"
+    port: 5432
+    password: ""  # Reference a Secret instead: use global.existingSecret
+
+    sonarr:
+      user: sonarr
+      mainDatabase: sonarr-main
+      logDatabase: sonarr-log
+
+    radarr:
+      user: radarr
+      mainDatabase: radarr-main
+      logDatabase: radarr-log
+
+    prowlarr:
+      enabled: false  # Prowlarr will use SQLite
+
+sonarr:
+  enabled: true
+  persistence:
+    config:
+      enabled: true
+      storageClassName: local-path
+      size: 1Gi
+
+radarr:
+  enabled: true
+  persistence:
+    config:
+      enabled: true
+      storageClassName: local-path
+      size: 1Gi
+
+prowlarr:
+  enabled: true
+  persistence:
+    config:
+      enabled: true
+      storageClassName: local-path
+      size: 1Gi
+
+## rtorrent disabled in minimal mode — requires RPC credentials and shared media PVCs.
+## See values-full.yaml for a working rtorrent example.
+rtorrent:
+  enabled: false
+
+## Config sync disabled — configure services via the UI
+configSync:
+  enabled: false
+
+## Recyclarr disabled
+recyclarr:
+  enabled: false

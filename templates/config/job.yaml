@@ -1,0 +1,131 @@
+{{- if .Values.configSync.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "arrmada.fullname" . }}-config-sync
+  labels:
+    {{- include "arrmada.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation
+    "helm.sh/hook-weight": "10"
+spec:
+  template:
+    metadata:
+      labels:
+        {{- include "arrmada.labels" . | nindent 8 }}
+        app.kubernetes.io/component: config-sync
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
+      containers:
+        - name: config-sync
+          image: "{{ .Values.configSync.image.repository }}:{{ .Values.configSync.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - apk add --no-cache --quiet curl jq && exec /scripts/config-sync.sh
+          env:
+            ## ── Global ───────────────────────────────────────────────────────
+            - name: CONFIG_SYNC_TIMEOUT
+              value: {{ .Values.configSync.timeout | quote }}
+            - name: DELETE_UNMANAGED
+              value: {{ .Values.configSync.deleteUnmanaged | quote }}
+            - name: DESIRED_DIR
+              value: /desired-state
+
+            ## ── Sonarr ───────────────────────────────────────────────────────
+            - name: SONARR_ENABLED
+              value: {{ .Values.sonarr.enabled | quote }}
+            - name: SONARR_URL
+              value: {{ include "arrmada.sonarrUrl" . | quote }}
+            - name: SONARR_API_VERSION
+              value: {{ .Values.configSync.apiVersions.sonarr | quote }}
+            - name: SONARR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "arrmada.secretName" . }}
+                  key: sonarr-api-key
+
+            ## ── Radarr ───────────────────────────────────────────────────────
+            - name: RADARR_ENABLED
+              value: {{ .Values.radarr.enabled | quote }}
+            - name: RADARR_URL
+              value: {{ include "arrmada.radarrUrl" . | quote }}
+            - name: RADARR_API_VERSION
+              value: {{ .Values.configSync.apiVersions.radarr | quote }}
+            - name: RADARR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "arrmada.secretName" . }}
+                  key: radarr-api-key
+
+            ## ── Prowlarr ─────────────────────────────────────────────────────
+            - name: PROWLARR_ENABLED
+              value: {{ .Values.prowlarr.enabled | quote }}
+            - name: PROWLARR_URL
+              value: {{ include "arrmada.prowlarrUrl" . | quote }}
+            - name: PROWLARR_API_VERSION
+              value: {{ .Values.configSync.apiVersions.prowlarr | quote }}
+            - name: PROWLARR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "arrmada.secretName" . }}
+                  key: prowlarr-api-key
+            {{- if .Values.prowlarr.config.indexers.existingSecret }}
+            - name: PROWLARR_INDEXERS_FILE
+              value: /indexers/{{ .Values.prowlarr.config.indexers.secretKey | default "indexers.json" }}
+            {{- end }}
+
+            ## ── rtorrent RPC credentials ─────────────────────────────────────
+            {{- if .Values.rtorrent.enabled }}
+            - name: RTORRENT_RPC_USERNAME
+              {{- if .Values.rtorrent.rpcAuth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rtorrent.rpcAuth.existingSecret }}
+                  key: {{ .Values.rtorrent.rpcAuth.secretUsernameKey | default "username" }}
+              {{- else }}
+              value: {{ .Values.rtorrent.rpcAuth.username | default "" | quote }}
+              {{- end }}
+            - name: RTORRENT_RPC_PASSWORD
+              {{- if .Values.rtorrent.rpcAuth.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.rtorrent.rpcAuth.existingSecret }}
+                  key: {{ .Values.rtorrent.rpcAuth.secretPasswordKey | default "password" }}
+              {{- else }}
+              value: {{ .Values.rtorrent.rpcAuth.password | default "" | quote }}
+              {{- end }}
+            {{- end }}
+
+          {{- with .Values.configSync.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: desired-state
+              mountPath: /desired-state
+            {{- if .Values.prowlarr.config.indexers.existingSecret }}
+            - name: prowlarr-indexers
+              mountPath: /indexers
+              readOnly: true
+            {{- end }}
+
+      volumes:
+        - name: scripts
+          configMap:
+            name: {{ include "arrmada.fullname" . }}-config-scripts
+            defaultMode: 0755
+        - name: desired-state
+          configMap:
+            name: {{ include "arrmada.fullname" . }}-desired-state
+        {{- if .Values.prowlarr.config.indexers.existingSecret }}
+        - name: prowlarr-indexers
+          secret:
+            secretName: {{ .Values.prowlarr.config.indexers.existingSecret }}
+        {{- end }}
+{{- end }}

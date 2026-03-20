@@ -1,0 +1,122 @@
+{{- if .Values.prowlarr.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "prowlarr") }}
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "prowlarr") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "arrmada.componentSelectorLabels" (dict "root" . "component" "prowlarr") | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "arrmada.componentLabels" (dict "root" . "component" "prowlarr") | nindent 8 }}
+      {{- with .Values.prowlarr.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
+      initContainers:
+        - name: init-config
+          image: alpine:3.19
+          command: ["/bin/sh", "/scripts/init-config.sh"]
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "arrmada.secretName" . }}
+                  key: prowlarr-api-key
+            - name: URL_BASE
+              value: {{ .Values.prowlarr.config.urlBase | default "" | quote }}
+            {{- if .Values.global.postgresql.prowlarr.enabled }}
+            - name: PG_HOST
+              value: {{ .Values.global.postgresql.host | quote }}
+            - name: PG_PORT
+              value: {{ .Values.global.postgresql.port | quote }}
+            - name: PG_USER
+              value: {{ .Values.global.postgresql.prowlarr.user | quote }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "arrmada.secretName" . }}
+                  key: postgresql-password
+            - name: PG_MAIN_DB
+              value: {{ .Values.global.postgresql.prowlarr.mainDatabase | quote }}
+            - name: PG_LOG_DB
+              value: {{ .Values.global.postgresql.prowlarr.logDatabase | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: init-scripts
+              mountPath: /scripts
+      containers:
+        - name: prowlarr
+          image: "{{ .Values.prowlarr.image.repository }}:{{ .Values.prowlarr.image.tag }}"
+          imagePullPolicy: {{ .Values.prowlarr.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 9696
+              protocol: TCP
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+            - name: UMASK
+              value: {{ .Values.global.env.UMASK | quote }}
+            {{- with .Values.prowlarr.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          {{- with .Values.prowlarr.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          {{- if .Values.prowlarr.persistence.config.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "arrmada.componentName" (dict "root" . "component" "prowlarr") }}-config
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: init-scripts
+          configMap:
+            name: {{ include "arrmada.componentName" (dict "root" . "component" "prowlarr") }}-init
+            defaultMode: 0755
+      {{- with .Values.prowlarr.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.prowlarr.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.prowlarr.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

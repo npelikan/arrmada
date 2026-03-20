@@ -1,0 +1,529 @@
+## Global settings shared across all services
+global:
+  ## Runtime user/group IDs for hotio images
+  env:
+    PUID: 1000
+    PGID: 1000
+    UMASK: "002"
+
+  ## Utility image used by lightweight init containers (mkdir/chown).
+  ## Must provide sh, mkdir, and chown. Decoupled from configSync.image so that
+  ## changing the config-sync image does not affect unrelated init containers.
+  utility:
+    image:
+      repository: alpine
+      tag: "3.19"
+
+  ## API keys for each service. Set these to stable 32-char hex strings.
+  ## Required when not using existingSecret.
+  apiKeys:
+    sonarr: ""
+    radarr: ""
+    prowlarr: ""
+
+  ## Reference an existing Secret containing API keys and PostgreSQL password.
+  ## When set, no Secret is created by this chart. The Secret must have keys:
+  ##   sonarr-api-key, radarr-api-key, prowlarr-api-key, postgresql-password
+  existingSecret: ""
+
+  ## External PostgreSQL connection settings.
+  ## PostgreSQL must be provisioned outside this chart.
+  postgresql:
+    host: ""
+    port: 5432
+    password: ""
+
+    ## Sonarr database configuration
+    sonarr:
+      enabled: true
+      user: sonarr
+      mainDatabase: sonarr-main
+      logDatabase: sonarr-log
+
+    ## Radarr database configuration
+    radarr:
+      enabled: true
+      user: radarr
+      mainDatabase: radarr-main
+      logDatabase: radarr-log
+
+    ## Prowlarr database configuration (optional — Prowlarr can use SQLite as fallback)
+    prowlarr:
+      enabled: false
+      user: prowlarr
+      mainDatabase: prowlarr-main
+      logDatabase: prowlarr-log
+
+  ## Shared media volumes mounted by Sonarr, Radarr, and rtorrent at the same paths.
+  ## Add one entry per physical storage volume (e.g. one NAS share per entry).
+  ##
+  ## IMPORTANT: All PVCs must be ReadWriteMany — Sonarr, Radarr, and rtorrent
+  ## access these volumes simultaneously. Auto-created PVCs enforce ReadWriteMany.
+  ## Pre-existing PVCs (existingClaim) must also be provisioned as ReadWriteMany.
+  ##
+  ## Each entry:
+  ##   name:             identifier; used in volume name (media-{name}) and PVC name
+  ##                     ({release}-media-{name})
+  ##   mountPath:        where the volume is mounted in every service container
+  ##   storageClassName: storage class for auto-created PVC; "" = cluster default
+  ##   size:             storage size for auto-created PVC
+  ##   existingClaim:    use a pre-existing PVC; leave empty to auto-create
+  ##   downloadDir:      path rtorrent saves completed downloads; init container creates it
+  ##   tvDir:            path auto-added to Sonarr root folders; init container creates it
+  ##   moviesDir:        path auto-added to Radarr root folders; init container creates it
+  ##
+  ## Example:
+  ##   media:
+  ##     - name: data
+  ##       mountPath: /data
+  ##       storageClassName: nfs-csi
+  ##       size: 10Ti
+  ##       downloadDir: /data/downloads
+  ##       tvDir: /data/tv
+  ##       moviesDir: /data/movies
+  media: []
+
+## Service account configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+## ─── Sonarr ───────────────────────────────────────────────────────────────────
+sonarr:
+  enabled: true
+
+  image:
+    repository: ghcr.io/hotio/sonarr
+    tag: release
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8989
+
+  ## Resource requests and limits
+  resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 256Mi
+
+  ## Persistence
+  persistence:
+    config:
+      enabled: true
+      storageClassName: ""
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+    ## Media volumes are now provided by global.media; no per-service volumes needed.
+
+  ## Ingress definitions (list, supports multiple ingress controllers)
+  ingress: []
+  # - name: nginx
+  #   enabled: true
+  #   className: nginx
+  #   annotations:
+  #     cert-manager.io/cluster-issuer: letsencrypt-prod
+  #   hosts:
+  #     - host: sonarr.example.com
+  #       paths:
+  #         - path: /
+  #           pathType: Prefix
+  #   tls:
+  #     - secretName: sonarr-tls
+  #       hosts:
+  #         - sonarr.example.com
+
+  ## Declarative configuration (synced via API on install/upgrade)
+  config:
+    urlBase: ""
+
+    ## Tags — synced first (other resources reference tag IDs by label)
+    tags: []
+    # - label: 4k
+
+    ## Root folders — media library paths.
+    ## global.media[*].tvDir entries are automatically added; list extra paths here.
+    rootFolders: []
+    # - path: /extra-tv
+
+    ## Quality definitions — override minSize/maxSize/preferredSize per quality tier.
+    ## Items are matched by title. The specified fields are merged into the full
+    ## existing definition fetched from the API, so unspecified fields are preserved.
+    qualityDefinitions: []
+    # - title: Bluray-1080p
+    #   minSize: 5
+    #   maxSize: 200
+    #   preferredSize: 95
+
+    ## Custom formats — see Sonarr API for full schema.
+    ## Matched by name; created if absent, updated if changed.
+    customFormats: []
+    # - name: "DoVi"
+    #   includeCustomFormatWhenRenaming: false
+    #   specifications:
+    #     - name: "DV"
+    #       implementation: "ReleaseTitleSpecification"
+    #       negate: false
+    #       required: true
+    #       fields:
+    #         - name: value
+    #           value: "\\bDV\\b|\\bDoVi\\b"
+
+    ## Quality profiles — matched by name.
+    ## Tip: use Recyclarr for TRaSH-guide profiles. Define custom ones here.
+    qualityProfiles: []
+    # - name: "HD-1080p"
+    #   upgradeAllowed: true
+    #   cutoff: 19
+    #   minFormatScore: 0
+    #   cutoffFormatScore: 0
+    #   items:
+    #     - quality: {id: 19, name: "Bluray-1080p"}
+    #       items: []
+    #       allowed: true
+
+    ## Delay profiles — matched by id. The default profile is always id: 1.
+    delayProfiles: []
+    # - id: 1
+    #   enableUsenet: true
+    #   enableTorrent: true
+    #   usenetDelay: 0
+    #   torrentDelay: 0
+    #   bypassIfHighestQuality: true
+    #   tags: []
+
+    ## Download clients — matched by name.
+    ## Use "${ENV_VAR}" (the entire field value) for sensitive values (host, password, apiKey).
+    ## Substitution is JSON-safe via jq; the env var value is injected as a proper JSON string.
+    ## Partial patterns like "prefix-${VAR}" are not supported — use a dedicated env var instead.
+    ## Mount the secret via configSync.extraEnvFrom.
+    downloadClients: []
+    # - name: "qBittorrent"
+    #   enable: true
+    #   implementation: "QBittorrent"
+    #   configContract: "QBittorrentSettings"
+    #   fields:
+    #     - name: host
+    #       value: "${QBIT_HOST}"
+    #     - name: port
+    #       value: 8080
+    #     - name: username
+    #       value: admin
+    #     - name: password
+    #       value: "${QBIT_PASSWORD}"
+
+    ## Notifications — matched by name.
+    notifications: []
+    # - name: "Telegram"
+    #   implementation: "Telegram"
+    #   configContract: "TelegramSettings"
+    #   onGrab: true
+    #   onDownload: true
+    #   fields:
+    #     - name: botToken
+    #       value: "${TELEGRAM_BOT_TOKEN}"
+    #     - name: chatId
+    #       value: "${TELEGRAM_CHAT_ID}"
+
+    ## Import lists — matched by name.
+    importLists: []
+
+    ## Naming configuration (singleton PUT). Leave empty to skip.
+    naming: {}
+    # renameEpisodes: true
+    # replaceIllegalCharacters: true
+    # colonReplacementFormat: "delete"
+    # standardEpisodeFormat: "{Series TitleYear} - S{season:00}E{episode:00} - {Episode CleanTitle} [{Custom Formats }{Quality Full}]{-Release Group}"
+    # seriesFolderFormat: "{Series TitleYear}"
+    # seasonFolderFormat: "Season {season:00}"
+
+    ## Media management (singleton PUT). Leave empty to skip.
+    mediaManagement: {}
+    # autoUnmonitorPreviouslyDownloadedEpisodes: false
+    # recycleBin: ""
+    # autoRenameFolders: false
+
+    ## Host settings (singleton PUT). Leave empty to skip.
+    host: {}
+    # analyticsEnabled: false
+    # logLevel: info
+
+    ## UI settings (singleton PUT). Leave empty to skip.
+    ui: {}
+    # firstDayOfWeek: 0
+    # calendarWeekColumnHeader: ddd M/D
+    # shortDateFormat: MMM D YYYY
+    # longDateFormat: dddd, MMMM D YYYY
+    # timeFormat: h(:mm)a
+    # showRelativeDates: true
+
+## ─── Radarr ───────────────────────────────────────────────────────────────────
+radarr:
+  enabled: true
+
+  image:
+    repository: ghcr.io/hotio/radarr
+    tag: release
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 7878
+
+  resources: {}
+
+  persistence:
+    config:
+      enabled: true
+      storageClassName: ""
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+    ## Media volumes are now provided by global.media; no per-service volumes needed.
+
+  ingress: []
+
+  config:
+    urlBase: ""
+    tags: []
+    ## global.media[*].moviesDir entries are automatically added; list extra paths here.
+    rootFolders: []
+    # - path: /extra-movies
+    qualityDefinitions: []
+    customFormats: []
+    qualityProfiles: []
+    delayProfiles: []
+    downloadClients: []
+    notifications: []
+    importLists: []
+    naming: {}
+    # renameMovies: true
+    # replaceIllegalCharacters: true
+    # colonReplacementFormat: "delete"
+    # standardMovieFormat: "{Movie CleanTitle} {(Release Year)} {imdb-{ImdbId}} {edition-{Edition Tags}} {[Custom Formats]}{[Quality Full]}{-Release Group}"
+    # movieFolderFormat: "{Movie CleanTitle} {(Release Year)}"
+    mediaManagement: {}
+    host: {}
+    ui: {}
+
+## ─── Prowlarr ─────────────────────────────────────────────────────────────────
+prowlarr:
+  enabled: true
+
+  image:
+    repository: ghcr.io/hotio/prowlarr
+    tag: release
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 9696
+
+  resources: {}
+
+  persistence:
+    config:
+      enabled: true
+      storageClassName: ""
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+  ingress: []
+
+  config:
+    urlBase: ""
+    tags: []
+    ## Download clients managed by Prowlarr
+    downloadClients: []
+    ## Notifications
+    notifications: []
+    ## Applications — Prowlarr→Sonarr/Radarr connections.
+    ## autoSonarr/autoRadarr auto-generate application entries using release-local URLs.
+    ## The auto-generated entries use ${SONARR_API_KEY}/${RADARR_API_KEY} env vars
+    ## so API keys are not stored in plaintext in the ConfigMap.
+    ##
+    ## BREAKING CHANGE (v0.2.0): This field changed from a flat list to a dict.
+    ## If upgrading from v0.1.x and you had prowlarr.config.applications set as a
+    ## list, migrate to the dict format shown below.
+    applications:
+      autoSonarr: true
+      autoRadarr: true
+      ## Prowlarr sync category IDs for the auto-generated Sonarr entry.
+      ## Defaults match standard TV categories. Override to restrict sync scope.
+      sonarrSyncCategories: [5000, 5010, 5020, 5030, 5040, 5045, 5050, 5060, 5070, 5080]
+      ## Prowlarr sync category IDs for the auto-generated Radarr entry.
+      ## Defaults match standard Movie categories.
+      radarrSyncCategories: [2000, 2010, 2020, 2030, 2040, 2045, 2050, 2060, 2070, 2080]
+      ## Additional application entries (any Prowlarr-supported app).
+      extra: []
+      # - name: "Sonarr-4K"
+      #   syncLevel: fullSync
+      #   implementation: Sonarr
+      #   configContract: SonarrSettings
+      #   fields:
+      #     - name: baseUrl
+      #       value: "http://sonarr-4k:8989"
+      #     - name: apiKey
+      #       value: "${SONARR4K_API_KEY}"
+      #     - name: syncCategories
+      #       value: [5000, 5010, 5020, 5030, 5040, 5045, 5050]
+
+    ## Indexers — two supported workflows:
+    ##
+    ## 1. Declarative (recommended for GitOps):
+    ##    Set existingSecret to a Kubernetes Secret containing indexer definitions.
+    ##    Use scripts/prowlarr-export.sh to generate the Secret from a running Prowlarr instance.
+    ##    On each helm upgrade the config sync Job will push the definitions to Prowlarr via API.
+    ##    See docs/prowlarr-indexers.md for the full workflow.
+    ##
+    ## 2. UI-managed:
+    ##    Leave existingSecret empty (""). The config sync Job will not touch indexers at all —
+    ##    add, edit, and remove indexers directly through the Prowlarr web UI.
+    ##    Note: configSync.deleteUnmanaged does NOT affect indexers when existingSecret is unset.
+    indexers:
+      ## Name of the Secret containing indexer definitions.
+      ## Leave empty to manage indexers through the Prowlarr UI instead.
+      existingSecret: ""
+      secretKey: "indexers.json"
+
+    ## General / host settings (singleton PUT). Leave empty to skip.
+    host: {}
+    ## UI settings (singleton PUT). Leave empty to skip.
+    ui: {}
+
+## ─── rtorrent ─────────────────────────────────────────────────────────────────
+## rflood: rtorrent with Flood web UI (ghcr.io/hotio/rflood).
+## Flood web UI is on port 3000; XML/JSON-RPC endpoint is on port 5000.
+## Sonarr and Radarr connect to rtorrent via http://{release}-rtorrent:5000/RPC2.
+##
+## WARNING: If you also define a download client named "rTorrent" in
+## sonarr.config.downloadClients or radarr.config.downloadClients, it will
+## appear as a duplicate alongside the auto-generated one. Rename the manual
+## entry or remove it to avoid duplicates.
+rtorrent:
+  enabled: true
+
+  image:
+    repository: ghcr.io/hotio/rflood
+    tag: release
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    floodPort: 3000   # Flood web UI
+    rpcPort: 5000     # XML/JSON-RPC (used by Sonarr/Radarr download client)
+
+  resources: {}
+
+  persistence:
+    config:
+      enabled: true
+      storageClassName: ""
+      size: 1Gi
+      accessMode: ReadWriteOnce
+
+  ingress: []
+
+  ## RPC basic-auth credentials for the rflood container.
+  ## rflood requires HTTP basic auth on its XML-RPC endpoint (/RPC2 on rpcPort).
+  ## An init container generates the bcrypt htpasswd entry from username/password
+  ## and writes it to /config/rpc2/basic_auth_credentials so the rflood nginx
+  ## proxy accepts Sonarr/Radarr connections.
+  ##
+  ## Preferred: reference an existing Secret with username and password keys.
+  ## Fallback:  set inline values (password is sensitive; prefer existingSecret).
+  rpcAuth:
+    existingSecret: ""       # Secret name; must contain username and password keys
+    secretUsernameKey: username
+    secretPasswordKey: password
+    username: ""             # inline plaintext username
+    password: ""             # inline plaintext password
+
+  ## Download directories are configured per-volume via global.media[*].downloadDir.
+
+## ─── Config Sync ──────────────────────────────────────────────────────────────
+## Helm hook Job that syncs declarative config to all services after install/upgrade
+configSync:
+  enabled: true
+  image:
+    ## Alpine is used as the base; the job installs curl and jq via apk before
+    ## running the sync script. Using the official pinned alpine image avoids
+    ## dependence on unmaintained third-party images.
+    repository: alpine
+    tag: "3.19"
+  deleteUnmanaged: false
+  timeout: 300
+  ## Optional: cron schedule for periodic drift reconciliation (e.g. "0 */6 * * *")
+  ## Leave empty to disable the CronJob.
+  schedule: ""
+  ## API versions passed to the config-sync script. These match the defaults
+  ## hard-coded in config-sync.sh and only need overriding if you run a
+  ## non-standard *arr build with a different API version.
+  apiVersions:
+    sonarr: "v3"
+    radarr: "v3"
+    prowlarr: "v1"
+
+  ## Additional environment sources (Secrets/ConfigMaps) to inject into the sync Job.
+  ## Use this to provide secrets referenced via ${ENV_VAR} in download client / notification configs.
+  ## Example:
+  ## extraEnvFrom:
+  ##   - secretRef:
+  ##       name: arrmada-download-client-secrets
+  extraEnvFrom: []
+
+## ─── Recyclarr ────────────────────────────────────────────────────────────────
+## TRaSH guide sync via Recyclarr CronJob.
+## See https://recyclarr.dev for full configuration documentation.
+recyclarr:
+  enabled: false
+
+  image:
+    repository: ghcr.io/recyclarr/recyclarr
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  ## Cron schedule for TRaSH guide sync. Defaults to every 6 hours.
+  schedule: "0 */6 * * *"
+
+  ## Optional PVC for Recyclarr's cache (speeds up repeated runs).
+  persistence:
+    enabled: false
+    storageClassName: ""
+    size: 1Gi
+    accessMode: ReadWriteOnce
+
+  ## Recyclarr configuration.
+  ## Service URLs are auto-populated from the release name.
+  ## API keys are injected via !env_var from the chart's Secret.
+  config:
+    ## Sonarr instance to sync. A single object (not a list) — the chart
+    ## manages exactly one Sonarr deployment at the internal cluster URL.
+    ## Field names use snake_case to mirror the recyclarr.yml format.
+    ## The generated instance key in recyclarr.yml is always "main".
+    sonarr: {}
+    # quality_definition:
+    #   type: series              # anime or series
+    # quality_profiles:
+    #   - name: HD-1080p
+    # custom_formats:
+    #   - trash_ids:
+    #       - 3a3ff47579026a9e4b651ef28c46b981   # DoVi
+    #     assign_scores_to:
+    #       - name: HD-1080p
+    #         score: 0
+    # delete_old_custom_formats: false
+
+    ## Radarr instance to sync. Same single-object format as sonarr above.
+    radarr: {}
+    # quality_definition:
+    #   type: movie
+    # quality_profiles:
+    #   - name: HD-1080p
+    # custom_formats: []
+    # delete_old_custom_formats: false

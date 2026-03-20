@@ -1,0 +1,107 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Run lint checks
+        run: bash tests/lint/lint.sh
+
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install helm-unittest plugin
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest --verify=false
+
+      - name: Run unit tests
+        run: helm unittest . -f 'tests/unit/*_test.yaml'
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [lint, unit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: arrmada-test
+
+      - name: Create local-path storage class
+        # kind ships with rancher/local-path-provisioner already running but
+        # names its default StorageClass "standard". Our test values reference
+        # "local-path" explicitly, so create that alias without touching the
+        # existing provisioner deployment or its ConfigMap.
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: local-path
+          provisioner: rancher.io/local-path
+          volumeBindingMode: WaitForFirstConsumer
+          reclaimPolicy: Delete
+          EOF
+
+      - name: Verify storage classes
+        run: kubectl get storageclass
+
+      - name: Write kubeconfig for test scripts
+        run: kubectl config view --raw > tests/.kubeconfig
+
+      - name: Run integration tests
+        env:
+          KUBECONFIG: ${{ github.workspace }}/tests/.kubeconfig
+        run: bash tests/integration/run.sh
+
+      - name: Dump cluster state on failure
+        if: failure()
+        run: |
+          echo "=== Storage Classes ==="
+          kubectl get storageclass
+
+          echo ""
+          echo "=== PVCs (all namespaces) ==="
+          kubectl get pvc -A
+
+          echo ""
+          echo "=== PVC describe (arrmada-test) ==="
+          kubectl describe pvc -n arrmada-test
+
+          echo ""
+          echo "=== Pods (all namespaces) ==="
+          kubectl get pods -A
+
+          echo ""
+          echo "=== local-path-provisioner logs ==="
+          kubectl logs -n local-path-storage \
+            -l app=local-path-provisioner --tail=50 || \
+          kubectl logs -n local-path-storage \
+            deployment/local-path-provisioner --tail=50 || \
+          echo "(no local-path-provisioner pod found)"
+
+          echo ""
+          echo "=== Events (arrmada-test namespace) ==="
+          kubectl get events -n arrmada-test --sort-by='.lastTimestamp'

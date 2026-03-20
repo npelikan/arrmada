@@ -1,0 +1,88 @@
+{{- if and .Values.configSync.enabled .Values.configSync.schedule }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "arrmada.fullname" . }}-config-reconcile
+  labels:
+    {{- include "arrmada.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.configSync.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "arrmada.labels" . | nindent 12 }}
+            app.kubernetes.io/component: config-reconcile
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
+          containers:
+            - name: config-sync
+              image: "{{ .Values.configSync.image.repository }}:{{ .Values.configSync.image.tag }}"
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - apk add --no-cache --quiet curl jq && exec /scripts/config-sync.sh
+              env:
+                - name: CONFIG_SYNC_TIMEOUT
+                  value: {{ .Values.configSync.timeout | quote }}
+                - name: DELETE_UNMANAGED
+                  value: {{ .Values.configSync.deleteUnmanaged | quote }}
+                - name: DESIRED_DIR
+                  value: /desired-state
+                - name: SONARR_ENABLED
+                  value: {{ .Values.sonarr.enabled | quote }}
+                - name: SONARR_URL
+                  value: {{ include "arrmada.sonarrUrl" . | quote }}
+                - name: SONARR_API_VERSION
+                  value: {{ .Values.configSync.apiVersions.sonarr | quote }}
+                - name: SONARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "arrmada.secretName" . }}
+                      key: sonarr-api-key
+                - name: RADARR_ENABLED
+                  value: {{ .Values.radarr.enabled | quote }}
+                - name: RADARR_URL
+                  value: {{ include "arrmada.radarrUrl" . | quote }}
+                - name: RADARR_API_VERSION
+                  value: {{ .Values.configSync.apiVersions.radarr | quote }}
+                - name: RADARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "arrmada.secretName" . }}
+                      key: radarr-api-key
+                - name: PROWLARR_ENABLED
+                  value: {{ .Values.prowlarr.enabled | quote }}
+                - name: PROWLARR_URL
+                  value: {{ include "arrmada.prowlarrUrl" . | quote }}
+                - name: PROWLARR_API_VERSION
+                  value: {{ .Values.configSync.apiVersions.prowlarr | quote }}
+                - name: PROWLARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "arrmada.secretName" . }}
+                      key: prowlarr-api-key
+              {{- with $.Values.configSync.extraEnvFrom }}
+              envFrom:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                - name: desired-state
+                  mountPath: /desired-state
+          volumes:
+            - name: scripts
+              configMap:
+                name: {{ include "arrmada.fullname" . }}-config-scripts
+                defaultMode: 0755
+            - name: desired-state
+              configMap:
+                name: {{ include "arrmada.fullname" . }}-desired-state
+{{- end }}

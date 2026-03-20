@@ -1,0 +1,174 @@
+suite: rtorrent deployment
+templates:
+  - rtorrent/deployment.yaml
+values:
+  - ../values-test.yaml
+tests:
+  - it: should not create deployment when disabled
+    set:
+      rtorrent.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should create deployment when enabled
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-arrmada-rtorrent
+
+  - it: should use correct container image
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ghcr\.io/hotio/rflood
+
+  - it: should use Recreate update strategy
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: should expose flood port 3000 and rpc port 5000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 3000
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].name
+          value: flood
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].containerPort
+          value: 5000
+      - equal:
+          path: spec.template.spec.containers[0].ports[1].name
+          value: rpc
+
+  - it: should have readiness probe
+    asserts:
+      - isNotEmpty:
+          path: spec.template.spec.containers[0].readinessProbe
+
+  - it: should set PUID and PGID env vars
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PUID
+            value: "1000"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PGID
+            value: "1000"
+
+  - it: should mount config volume
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+          any: true
+
+  - it: should use PVC for config when persistence enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-arrmada-rtorrent-config
+
+  - it: should use emptyDir for config when persistence disabled
+    set:
+      rtorrent.persistence.config.enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            emptyDir: {}
+
+  - it: should include global media volumes
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: media-data
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-arrmada-media-data
+          any: true
+
+  - it: should mount global media volumes in container
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: media-data
+            mountPath: /data
+          any: true
+
+  - it: should create download-dirs init container when downloadDir set
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers
+          content:
+            name: create-download-dirs
+          any: true
+
+  - it: should not have init container when no downloadDirs and no rpcAuth
+    set:
+      global.media:
+        - name: data
+          mountPath: /data
+          storageClassName: local-path
+          size: 5Gi
+      rtorrent.rpcAuth.username: ""
+      rtorrent.rpcAuth.existingSecret: ""
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+
+  - it: should have write-rpc-credentials init container when rpcAuth username is set
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers
+          content:
+            name: write-rpc-credentials
+          any: true
+
+  - it: should set RTORRENT_RPC_USERNAME env var on write-rpc-credentials init container
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env
+          content:
+            name: RTORRENT_RPC_USERNAME
+          any: true
+
+  - it: should set RTORRENT_RPC_PASSWORD env var on write-rpc-credentials init container
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env
+          content:
+            name: RTORRENT_RPC_PASSWORD
+          any: true
+
+  - it: should use secretKeyRef for username and password when existingSecret is set
+    set:
+      rtorrent.rpcAuth.existingSecret: my-rpc-secret
+      rtorrent.rpcAuth.username: ""
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env[?(@.name == "RTORRENT_RPC_USERNAME")].valueFrom.secretKeyRef.name
+          value: my-rpc-secret
+      - equal:
+          path: spec.template.spec.initContainers[?(@.name == "write-rpc-credentials")].env[?(@.name == "RTORRENT_RPC_PASSWORD")].valueFrom.secretKeyRef.name
+          value: my-rpc-secret
+
+  - it: should set component label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: rtorrent

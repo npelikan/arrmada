@@ -1,0 +1,151 @@
+{{- if .Values.radarr.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "arrmada.componentName" (dict "root" . "component" "radarr") }}
+  labels:
+    {{- include "arrmada.componentLabels" (dict "root" . "component" "radarr") | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "arrmada.componentSelectorLabels" (dict "root" . "component" "radarr") | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "arrmada.componentLabels" (dict "root" . "component" "radarr") | nindent 8 }}
+      {{- with .Values.radarr.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      serviceAccountName: {{ include "arrmada.serviceAccountName" . }}
+      {{- $explicitRoots := .Values.radarr.config.rootFolders | default list -}}
+      {{- $hasAutoRoots := false -}}
+      {{- range .Values.global.media -}}{{- if .moviesDir -}}{{- $hasAutoRoots = true -}}{{- end -}}{{- end }}
+      initContainers:
+        - name: init-config
+          image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
+          command: ["/bin/sh", "/scripts/init-config.sh"]
+          env:
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "arrmada.secretName" . }}
+                  key: radarr-api-key
+            - name: URL_BASE
+              value: {{ .Values.radarr.config.urlBase | default "" | quote }}
+            - name: PG_HOST
+              value: {{ .Values.global.postgresql.host | quote }}
+            - name: PG_PORT
+              value: {{ .Values.global.postgresql.port | quote }}
+            - name: PG_USER
+              value: {{ .Values.global.postgresql.radarr.user | quote }}
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "arrmada.secretName" . }}
+                  key: postgresql-password
+            - name: PG_MAIN_DB
+              value: {{ .Values.global.postgresql.radarr.mainDatabase | quote }}
+            - name: PG_LOG_DB
+              value: {{ .Values.global.postgresql.radarr.logDatabase | quote }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: init-scripts
+              mountPath: /scripts
+        {{- if or $explicitRoots $hasAutoRoots }}
+        - name: create-root-folders
+          image: "{{ .Values.global.utility.image.repository }}:{{ .Values.global.utility.image.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              {{- range $explicitRoots }}
+              mkdir -p {{ .path | quote }}
+              chown "${PUID}:${PGID}" {{ .path | quote }} 2>/dev/null || true
+              {{- end }}
+              {{- range .Values.global.media }}
+              {{- if .moviesDir }}
+              mkdir -p {{ .moviesDir | quote }}
+              chown "${PUID}:${PGID}" {{ .moviesDir | quote }} 2>/dev/null || true
+              {{- end }}
+              {{- end }}
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | default "1000" | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | default "1000" | quote }}
+          volumeMounts:
+            {{- include "arrmada.globalMediaVolumeMounts" . | nindent 12 }}
+        {{- end }}
+      containers:
+        - name: radarr
+          image: "{{ .Values.radarr.image.repository }}:{{ .Values.radarr.image.tag }}"
+          imagePullPolicy: {{ .Values.radarr.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 7878
+              protocol: TCP
+          env:
+            - name: PUID
+              value: {{ .Values.global.env.PUID | quote }}
+            - name: PGID
+              value: {{ .Values.global.env.PGID | quote }}
+            - name: UMASK
+              value: {{ .Values.global.env.UMASK | quote }}
+            {{- with .Values.radarr.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+          {{- with .Values.radarr.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            {{- include "arrmada.globalMediaVolumeMounts" . | nindent 12 }}
+      volumes:
+        - name: config
+          {{- if .Values.radarr.persistence.config.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "arrmada.componentName" (dict "root" . "component" "radarr") }}-config
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: init-scripts
+          configMap:
+            name: {{ include "arrmada.componentName" (dict "root" . "component" "radarr") }}-init
+            defaultMode: 0755
+        {{- include "arrmada.globalMediaVolumes" . | nindent 8 }}
+      {{- with .Values.radarr.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.radarr.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.radarr.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

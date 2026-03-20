@@ -1,0 +1,17 @@
+{{- if .Values.configSync.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "arrmada.fullname" . }}-config-scripts
+  labels:
+    {{- include "arrmada.labels" . | nindent 4 }}
+data:
+  config-sync.sh: |
+    {{- .Files.Get "scripts/config-sync.sh" | nindent 4 }}
+  wait-for-api.sh: |
+    {{- .Files.Get "scripts/wait-for-api.sh" | nindent 4 }}
+  helpers.sh: |
+    {{- .Files.Get "scripts/lib/helpers.sh" | nindent 4 }}
+  sync-resource.sh: |
+    {{- .Files.Get "scripts/lib/sync-resource.sh" | nindent 4 }}
+{{- end }}

@@ -1,0 +1,85 @@
+suite: prowlarr deployment
+templates:
+  - prowlarr/deployment.yaml
+values:
+  - ../values-test.yaml
+tests:
+  - it: should create deployment when enabled
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-arrmada-prowlarr
+
+  - it: should not create deployment when disabled
+    set:
+      prowlarr.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: should use correct container image
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ghcr\.io/hotio/prowlarr
+
+  - it: should use Recreate update strategy
+    asserts:
+      - equal:
+          path: spec.strategy.type
+          value: Recreate
+
+  - it: should have init container for config.xml
+    asserts:
+      - isNotEmpty:
+          path: spec.template.spec.initContainers
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: init-config
+
+  - it: should expose port 9696
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports[0].containerPort
+          value: 9696
+
+  - it: should have readiness probe on /ping
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /ping
+
+  - it: should set component label
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/component"]
+          value: prowlarr
+
+  - it: should mount config volume
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+          any: true
+
+  - it: should use PVC for config when persistence enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            persistentVolumeClaim:
+              claimName: RELEASE-NAME-arrmada-prowlarr-config
+
+  - it: should use emptyDir for config when persistence disabled
+    set:
+      prowlarr.persistence.config.enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: config
+            emptyDir: {}
